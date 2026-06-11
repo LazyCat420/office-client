@@ -70,16 +70,19 @@ export function TelemetryProvider({ children }: { children: React.ReactNode }) {
     // Initial fetch to paint immediately
     loadCycleStatus(false);
 
+    let isSubscribed = true;
+    let es: EventSource | null = null;
+    let reconnectTimer: any = null;
+    let isSSEActive = false;
+
     // Heartbeat: poll every 10s as fallback for missed SSE events.
     // This catches cycle-end transitions the SSE stream might miss
     // due to reconnect gaps or JSON dedup.
     const heartbeatInterval = setInterval(() => {
-      loadCycleStatus(true); // summary_only=true to minimize bandwidth
+      if (isSubscribed && !isSSEActive) {
+        loadCycleStatus(true); // summary_only=true to minimize bandwidth
+      }
     }, 10_000);
-
-    let isSubscribed = true;
-    let es: EventSource | null = null;
-    let reconnectTimer: any = null;
 
     const connectSSE = () => {
       if (!isSubscribed) return;
@@ -88,6 +91,7 @@ export function TelemetryProvider({ children }: { children: React.ReactNode }) {
 
       es.onmessage = (event) => {
         if (!isSubscribed) return;
+        isSSEActive = true;
         try {
           const s = JSON.parse(event.data);
           if (s && s.status !== 'Backend unreachable') {
@@ -100,6 +104,7 @@ export function TelemetryProvider({ children }: { children: React.ReactNode }) {
 
       es.onerror = (error) => {
         console.error('[TelemetryStore] Cycle status stream error, reconnecting...', error);
+        isSSEActive = false;
         if (es) es.close();
         if (isSubscribed) {
           reconnectTimer = setTimeout(connectSSE, 5000);
