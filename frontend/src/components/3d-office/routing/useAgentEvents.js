@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { processEvent, arriveAgent, moveAgent, releaseSlot, resetOccupancy, AGENT_STATES, clearBubble } from './stateMachine';
-import { mapEvent } from '../../agent-office/shared';
+import { mapEvent, mapPrismEvent, isPrismWebhookEvent } from '../../agent-office/shared';
 import { classifyToolStation } from './toolStationMap';
 
 const WALK_DURATION_MS = 15000;
@@ -18,7 +18,7 @@ export { cleanAgentId };
 const getStationForAgentOrTool = (agentId, toolName) =>
   sharedGetStationForAgentOrTool(agentId, toolName, classifyToolStation, true);
 
-export function useAgentEvents(events, status) {
+export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
   const [agents, setAgents] = useState({});
   const isRunning = status && !['idle', 'done', 'error', 'stopped', 'interrupted'].includes(status);
   
@@ -342,6 +342,68 @@ export function useAgentEvents(events, status) {
       if (es) es.close();
     };
   }, [isRunning, sceneMounted]);
+
+  // ── Prism webhook SSE — always-on, drives agent animations from
+  //    prism-service's real-time webhook events (tool calls, generation lifecycle)
+  //    Also forwards agent_voice events to the parent via onVoiceEvent callback,
+  //    eliminating the need for a duplicate SSE connection in AgentOffice3D.
+  const onVoiceEventRef = useRef(onVoiceEvent);
+  useEffect(() => { onVoiceEventRef.current = onVoiceEvent; }, [onVoiceEvent]);
+
+  useEffect(() => {
+    // Guard: don't open SSE until the scene has mounted
+    if (!mountedRef.current) return;
+
+    let es = null;
+    let cancelled = false;
+    const prismStreamUrl =
+      '/api/v1/prism/stream?events=request.tool_call.started,request.tool_call.completed,generation.started,generation.completed,request.created';
+
+    try {
+      es = new EventSource(prismStreamUrl);
+      es.onmessage = (e) => {
+        if (cancelled) return;
+        try {
+          const parsed = JSON.parse(e.data);
+
+          // Forward agent_voice events to the parent component
+          if (parsed.type === 'agent_voice' && onVoiceEventRef.current) {
+            onVoiceEventRef.current(parsed);
+            return;
+          }
+
+          // Only process Prism webhook events (have eventType field)
+          if (!isPrismWebhookEvent(parsed)) return;
+
+          // Translate Prism event → office events
+          const officeEvents = mapPrismEvent(parsed, classifyToolStation);
+          if (officeEvents.length === 0) return;
+
+          setAgents(prevAgents => {
+            let updated = { ...prevAgents };
+            for (const oe of officeEvents) {
+              updated = processEvent(updated, oe);
+              applyTimers(oe.agentId, updated[oe.agentId]);
+            }
+            return updated;
+          });
+        } catch (err) {
+          // Silently ignore parse errors from non-JSON SSE messages
+        }
+      };
+
+      es.onerror = () => {
+        // EventSource auto-reconnects; nothing to do
+      };
+    } catch (err) {
+      // SSE construction failed — will not retry automatically
+    }
+
+    return () => {
+      cancelled = true;
+      if (es) es.close();
+    };
+  }, [sceneMounted]);
 
   // Auto-expire inactive agents — walk to exit door and then leave the office completely
   useEffect(() => {

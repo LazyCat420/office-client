@@ -86,6 +86,37 @@ export const TOOL_TO_STATION = {
   cancel_price_trigger: 'tool_bench',
   save_trading_chart: 'tool_bench',
   update_youtube_channel_handle: 'tool_bench',
+
+  // ── Prism-specific tools (agentic loop, orchestrator, MCP) ──
+  // Research
+  web_search: 'research',
+  webSearch: 'research',
+  webFetch: 'research',
+  google_search: 'research',
+  googleSearch: 'research',
+  file_search: 'research',
+  fileSearch: 'research',
+  url_context: 'research',
+  urlContext: 'research',
+  // Desk / Analysis
+  upsert_memory: 'desk',
+  thinking: 'desk',
+  code_execution: 'desk',
+  codeExecution: 'desk',
+  computer_use: 'desk',
+  computerUse: 'desk',
+  image_generation: 'desk',
+  imageGeneration: 'desk',
+  // War Room / Team
+  create_team: 'debate',
+  team_create: 'debate',
+  stop_agent: 'debate',
+  // Exec Office
+  submit_decision: 'inbox',
+  approve_action: 'inbox',
+  // Tool Bench
+  mcp_tool: 'tool_bench',
+  custom_tool: 'tool_bench',
 };
 
 // ══════════════════════════════════════════════════════
@@ -93,12 +124,12 @@ export const TOOL_TO_STATION = {
 // ══════════════════════════════════════════════════════
 
 const KEYWORD_RULES = [
-  { keywords: ['search', 'fetch', 'scrape', 'get_', 'read', 'scan', 'query', 'hermes', 'wiki', 'news', 'price', 'fundamental', 'technical', 'crypto', 'completeness', 'reddit', 'youtube'], station: 'research' },
-  { keywords: ['think', 'calculate', 'memory', 'note', 'profile', 'hallucination', 'sleep', 'analy', 'synth', 'infer', 'llm', 'model', 'prompt', 'token', 'generate'], station: 'desk' },
-  { keywords: ['consensus', 'debate', 'compare', 'vote', 'audit', 'finding', 'amendment', 'bull', 'bear', 'agree', 'disagree'], station: 'debate' },
-  { keywords: ['trade', 'order', 'execute', 'buy', 'sell', 'inbox', 'envelope', 'portfolio', 'watchlist', 'decision', 'recommend', 'submit'], station: 'inbox' },
+  { keywords: ['search', 'fetch', 'scrape', 'get_', 'read', 'scan', 'query', 'hermes', 'wiki', 'news', 'price', 'fundamental', 'technical', 'crypto', 'completeness', 'reddit', 'youtube', 'web_search', 'google', 'file_search', 'url_context'], station: 'research' },
+  { keywords: ['think', 'calculate', 'memory', 'note', 'profile', 'hallucination', 'sleep', 'analy', 'synth', 'infer', 'llm', 'model', 'prompt', 'token', 'generate', 'upsert', 'code_exec', 'computer_use', 'image_gen'], station: 'desk' },
+  { keywords: ['consensus', 'debate', 'compare', 'vote', 'audit', 'finding', 'amendment', 'bull', 'bear', 'agree', 'disagree', 'create_team', 'team_create', 'stop_agent', 'orchestrat'], station: 'debate' },
+  { keywords: ['trade', 'order', 'execute', 'buy', 'sell', 'inbox', 'envelope', 'portfolio', 'watchlist', 'decision', 'recommend', 'submit', 'approve'], station: 'inbox' },
   { keywords: ['error', 'fail', 'crash', 'retry', 'timeout', 'exception'], station: 'error' },
-  { keywords: ['tool', 'api', 'call', 'request', 'schedule', 'trigger', 'config'], station: 'tool_bench' },
+  { keywords: ['tool', 'api', 'call', 'request', 'schedule', 'trigger', 'config', 'mcp', 'custom_tool'], station: 'tool_bench' },
 ];
 
 /**
@@ -211,6 +242,22 @@ export const TOOL_TO_ANIM_VARIANT = {
   cancel_price_trigger: 2,       // levers
   save_trading_chart: 0,         // hammering (building)
   update_youtube_channel_handle: 1, // terminal
+
+  // ── Prism-specific tools ──
+  web_search: 3,                 // scanning doc
+  webSearch: 3,                  // scanning doc
+  webFetch: 3,                   // scanning doc
+  google_search: 3,              // scanning doc
+  file_search: 2,                // flipping book
+  url_context: 3,                // scanning doc
+  upsert_memory: 3,              // jumping
+  code_execution: 1,             // terminal (tool_bench)
+  codeExecution: 1,              // terminal
+  computer_use: 0,               // hammering
+  image_generation: 3,           // jumping
+  create_team: 0,                // gesturing
+  team_create: 0,                // gesturing
+  stop_agent: 1,                 // table slam
 
   // ── Error / Risk Mgmt ──
   error: 0,                      // panic
