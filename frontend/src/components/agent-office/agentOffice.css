@@ -1,0 +1,1272 @@
+/* ═══════════════════════════════════════════════════════════
+   Agent Office — Activity Visualization Styles
+   ═══════════════════════════════════════════════════════════ */
+
+.agent-office {
+  position: relative;
+  width: 100%;
+  border-radius: var(--radius-md, 8px);
+  overflow: hidden;
+  background: linear-gradient(165deg, #0f1724 0%, #1a1f35 40%, #141926 100%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  user-select: none;
+}
+
+.agent-office--collapsed {
+  cursor: pointer;
+}
+
+/* ── Toggle bar ── */
+.agent-office__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.agent-office__toggle:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.agent-office__toggle-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-primary, #e2e8f0);
+  letter-spacing: 0.3px;
+}
+
+.agent-office__toggle-title svg {
+  opacity: 0.6;
+}
+
+.agent-office__toggle-stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.7rem;
+  color: var(--text-muted, #64748b);
+}
+
+.agent-office__toggle-stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.agent-office__toggle-stat .count {
+  font-weight: 600;
+  color: var(--accent, #818cf8);
+  font-family: var(--font-mono, monospace);
+}
+
+.agent-office__toggle-chevron {
+  font-size: 0.7rem;
+  color: var(--text-muted, #64748b);
+  transition: transform 0.3s ease;
+}
+
+.agent-office__toggle-chevron--open {
+  transform: rotate(180deg);
+}
+
+/* ── Scene container ── */
+.agent-office__scene {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 5 / 3;
+  min-height: 260px;
+  max-height: 500px;
+  overflow: hidden;
+}
+
+/* ── SVG scene ── */
+.agent-office__svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Ceiling fluorescent lights ── */
+.agent-office__ceiling-light {
+  animation: ceiling-flicker 5s ease-in-out infinite;
+}
+
+@keyframes ceiling-flicker {
+  0%, 100% { opacity: 0.06; }
+  20% { opacity: 0.12; }
+  50% { opacity: 0.08; }
+  80% { opacity: 0.14; }
+}
+
+/* ── Ticker tape scroll ── */
+.agent-office__ticker-tape {
+  animation: ticker-scroll 30s linear infinite;
+}
+
+@keyframes ticker-scroll {
+  0% { transform: translateX(200px); }
+  100% { transform: translateX(-400px); }
+}
+
+/* ── Wall clock ── */
+.agent-office__clock-minute {
+  animation: clock-tick 60s linear infinite;
+  transform-origin: 0 0;
+}
+
+.agent-office__clock-hour {
+  animation: clock-hour-tick 720s linear infinite;
+  transform-origin: 0 0;
+}
+
+@keyframes clock-tick {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes clock-hour-tick {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+
+/* ── Stations ── */
+.agent-office__station {
+  transition: opacity 0.3s;
+}
+
+.agent-office__station-bg {
+  rx: 6;
+  ry: 6;
+  fill: rgba(255, 255, 255, 0.02);
+  stroke-width: 1;
+  stroke-dasharray: 4 2;
+  transition: fill 0.3s, stroke 0.3s;
+}
+
+.agent-office__station--active .agent-office__station-bg {
+  fill: rgba(255, 255, 255, 0.04);
+}
+
+.agent-office__station-label {
+  font-size: 3px;
+  font-weight: 600;
+  fill: rgba(255, 255, 255, 0.35);
+  text-anchor: middle;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.agent-office__station-icon {
+  font-size: 5px;
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+/* ── Agent figure ── */
+.agent-office__agent {
+  will-change: transform;
+  backface-visibility: hidden;
+  transition: transform 1.0s cubic-bezier(0.4, 0.0, 0.2, 1);
+  cursor: default;
+}
+
+.agent-office__agent--walking {
+  transition: transform 2.0s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+/* Walking body bob — visible up-down bounce while agent slides to new position */
+.agent-office__agent--walking .agent-office__agent-body {
+  animation: walk-bounce 0.35s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
+.agent-office__agent--walking .agent-office__agent-head {
+  animation: walk-head-bob 0.35s ease-in-out infinite;
+}
+
+@keyframes walk-bounce {
+  0%, 100% { transform: translateY(0) scaleY(1); }
+  50% { transform: translateY(-0.6px) scaleY(0.97); }
+}
+
+@keyframes walk-head-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-0.5px); }
+}
+
+/* Walking leg swing — alternating stride */
+.agent-office__leg-left {
+  animation: leg-swing-left 0.35s ease-in-out infinite;
+  transform-origin: center top;
+}
+
+.agent-office__leg-right {
+  animation: leg-swing-right 0.35s ease-in-out infinite;
+  transform-origin: center top;
+}
+
+@keyframes leg-swing-left {
+  0%, 100% { transform: rotate(-8deg) translateX(-0.2px); }
+  50% { transform: rotate(8deg) translateX(0.2px); }
+}
+
+@keyframes leg-swing-right {
+  0%, 100% { transform: rotate(8deg) translateX(0.2px); }
+  50% { transform: rotate(-8deg) translateX(-0.2px); }
+}
+
+/* Walking arm swing — opposite to legs for natural gait */
+.agent-office__arm-left {
+  animation: arm-swing-left 0.35s ease-in-out infinite;
+  transform-origin: center top;
+}
+
+.agent-office__arm-right {
+  animation: arm-swing-right 0.35s ease-in-out infinite;
+  transform-origin: center top;
+}
+
+@keyframes arm-swing-left {
+  0%, 100% { transform: rotate(6deg); }
+  50% { transform: rotate(-6deg); }
+}
+
+@keyframes arm-swing-right {
+  0%, 100% { transform: rotate(-6deg); }
+  50% { transform: rotate(6deg); }
+}
+
+/* ── Walking motion trail ── */
+.agent-office__walk-trail {
+  animation: walk-trail-fade 0.5s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes walk-trail-fade {
+  0% { opacity: 0.25; transform: translateX(0); }
+  100% { opacity: 0; transform: translateX(-1.5px); }
+}
+
+/* ── Shadow stretches during walk ── */
+.agent-office__shadow {
+  transition: rx 0.3s, ry 0.3s;
+}
+
+.agent-office__shadow--walking {
+  animation: shadow-walk 0.35s ease-in-out infinite alternate;
+}
+
+@keyframes shadow-walk {
+  0% { opacity: 0.35; }
+  100% { opacity: 0.2; }
+}
+
+/* ── SVG child transform-box fix ── */
+.agent-office__leg-left,
+.agent-office__leg-right,
+.agent-office__arm-left,
+.agent-office__arm-right,
+.agent-office__agent-body,
+.agent-office__agent-head {
+  transform-box: fill-box;
+}
+
+.agent-office__agent--spawning {
+  animation: agent-spawn 0.6s ease-out;
+}
+
+@keyframes agent-spawn {
+  0% { opacity: 0; transform: scale(0.3); }
+  50% { opacity: 1; transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+/* Agent body */
+.agent-office__agent-body {
+  transition: fill 0.3s;
+}
+
+.agent-office__agent-head {
+  transition: fill 0.3s;
+}
+
+/* Agent label */
+.agent-office__agent-label {
+  font-size: 2.2px;
+  font-weight: 600;
+  fill: rgba(255, 255, 255, 0.7);
+  text-anchor: middle;
+  pointer-events: none;
+  font-family: var(--font-mono, monospace);
+}
+
+/* ── Bubble ── */
+.agent-office__bubble {
+  pointer-events: none;
+  animation: bubble-appear 0.3s ease-out;
+}
+
+@keyframes bubble-appear {
+  0% { opacity: 0; transform: translateY(2px) scale(0.8); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.agent-office__bubble-bg {
+  rx: 2;
+  ry: 2;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+}
+
+.agent-office__bubble-text {
+  font-size: 2px;
+  font-weight: 600;
+  text-anchor: middle;
+  pointer-events: none;
+  font-family: var(--font-mono, monospace);
+}
+
+.agent-office__bubble--thinking .agent-office__bubble-text {
+  animation: thinking-dots 1.5s infinite;
+}
+
+@keyframes thinking-dots {
+  0%, 20% { opacity: 1; }
+  50% { opacity: 0.4; }
+  80%, 100% { opacity: 1; }
+}
+
+/* ── Props ── */
+.agent-office__prop {
+  pointer-events: none;
+}
+
+.agent-office__prop--paper {
+  animation: paper-appear 0.4s ease-out;
+}
+
+@keyframes paper-appear {
+  0% { opacity: 0; transform: translateY(-3px) rotate(-10deg); }
+  100% { opacity: 1; transform: translateY(0) rotate(0deg); }
+}
+
+.agent-office__prop--envelope {
+  animation: envelope-fly 0.8s ease-out;
+}
+
+@keyframes envelope-fly {
+  0% { opacity: 0; transform: translate(-5px, -2px) scale(0.5); }
+  60% { opacity: 1; transform: translate(0, -4px) scale(1.1); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+
+/* ── Ambient effects ── */
+.agent-office__ambient-glow {
+  animation: ambient-pulse 4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes ambient-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+}
+
+/* ── Station activity indicators ── */
+.agent-office__station-pulse {
+  animation: station-pulse 2s ease-in-out infinite;
+}
+
+@keyframes station-pulse {
+  0%, 100% { r: 2; opacity: 0.4; }
+  50% { r: 3.5; opacity: 0.15; }
+}
+
+/* Station activation ring ripple */
+.agent-office__station--active .agent-office__station-ring {
+  animation: station-ring-expand 1.5s ease-out infinite;
+}
+
+@keyframes station-ring-expand {
+  0% { r: 3; opacity: 0.5; stroke-width: 1; }
+  100% { r: 12; opacity: 0; stroke-width: 0.2; }
+}
+
+/* ── Error alarm ── */
+.agent-office__alarm {
+  animation: alarm-flash 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes alarm-flash {
+  0% { opacity: 0.3; fill: #ef4444; }
+  100% { opacity: 0.9; fill: #ff6b6b; }
+}
+
+/* ── Idle breathing ── */
+.agent-office__agent--idle .agent-office__agent-body {
+  animation: idle-breathe 3s ease-in-out infinite;
+}
+
+@keyframes idle-breathe {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(1.02); }
+}
+
+/* ── Working animation ── */
+.agent-office__agent--working .agent-office__agent-body {
+  animation: work-bob 1.5s ease-in-out infinite;
+}
+
+@keyframes work-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-0.3px); }
+}
+
+/* ── Arguing animation ── */
+.agent-office__agent--arguing .agent-office__agent-body {
+  animation: argue-gesture 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes argue-gesture {
+  0% { transform: rotate(-3deg); }
+  100% { transform: rotate(3deg); }
+}
+
+/* ── Dancing animation (Trading Floor) ── */
+.agent-office__agent--dancing .agent-office__agent-body {
+  animation: dance-body 1s ease-in-out infinite alternate;
+  transform-origin: center bottom;
+}
+
+.agent-office__agent--dancing .agent-office__agent-head {
+  animation: dance-head 1s ease-in-out infinite alternate;
+  transform-origin: center;
+}
+
+@keyframes dance-body {
+  0% { transform: translateY(0) rotate(-3deg) scaleY(0.97); }
+  50% { transform: translateY(-1px) rotate(0deg) scaleY(1.03); }
+  100% { transform: translateY(0) rotate(3deg) scaleY(0.97); }
+}
+
+@keyframes dance-head {
+  0% { transform: translateY(-0.5px) rotate(2deg); }
+  100% { transform: translateY(0.3px) rotate(-2deg); }
+}
+
+/* Dancing legs shuffle */
+.agent-office__agent--dancing .agent-office__leg-left {
+  animation: dance-leg-left 0.6s ease-in-out infinite alternate;
+  transform-origin: center top;
+}
+
+.agent-office__agent--dancing .agent-office__leg-right {
+  animation: dance-leg-right 0.6s ease-in-out infinite alternate;
+  transform-origin: center top;
+}
+
+@keyframes dance-leg-left {
+  0% { transform: rotate(-12deg) translateX(-0.3px); }
+  100% { transform: rotate(12deg) translateX(0.3px); }
+}
+
+@keyframes dance-leg-right {
+  0% { transform: rotate(12deg) translateX(0.3px); }
+  100% { transform: rotate(-12deg) translateX(-0.3px); }
+}
+
+/* Dancing arm pump */
+.agent-office__agent--dancing .agent-office__arm-left {
+  animation: dance-arm-left 1s ease-in-out infinite alternate;
+  transform-origin: center top;
+}
+
+.agent-office__agent--dancing .agent-office__arm-right {
+  animation: dance-arm-right 1s ease-in-out infinite alternate;
+  transform-origin: center top;
+}
+
+@keyframes dance-arm-left {
+  0% { transform: rotate(15deg) translateY(-0.5px); }
+  100% { transform: rotate(-10deg) translateY(0.3px); }
+}
+
+@keyframes dance-arm-right {
+  0% { transform: rotate(-15deg) translateY(0.3px); }
+  100% { transform: rotate(10deg) translateY(-0.5px); }
+}
+
+/* ── Smoking animation (Smoke Break) ── */
+.agent-office__agent--smoking .agent-office__agent-body {
+  animation: smoke-idle 4s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
+@keyframes smoke-idle {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-0.2px) rotate(-1deg); }
+  50% { transform: translateY(0) rotate(0.5deg); }
+  75% { transform: translateY(-0.1px) rotate(-0.5deg); }
+}
+
+/* Smoke puff particles */
+.agent-office__smoke-puff {
+  animation: smoke-rise 3s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes smoke-rise {
+  0% { opacity: 0.4; transform: translate(0, 0) scale(0.5); }
+  40% { opacity: 0.3; transform: translate(-0.5px, -2px) scale(0.8); }
+  70% { opacity: 0.15; transform: translate(0.3px, -4px) scale(1); }
+  100% { opacity: 0; transform: translate(-0.2px, -6px) scale(1.2); }
+}
+
+/* Cigarette glow */
+.agent-office__cigarette-glow {
+  animation: cig-glow 2s ease-in-out infinite;
+}
+
+@keyframes cig-glow {
+  0%, 100% { opacity: 0.4; r: 0.3; }
+  50% { opacity: 0.9; r: 0.5; }
+}
+
+/* ── Exiting animation — walk to front door and slide off-screen ── */
+.agent-office__agent--exiting {
+  animation: agent-exit 1.2s ease-in forwards;
+}
+
+@keyframes agent-exit {
+  0% { opacity: 1; }
+  70% { opacity: 0.6; }
+  100% { opacity: 0; transform: translateX(-20px) translateY(10px); }
+}
+
+/* ── Research desk lean ── */
+.agent-office__agent--research .agent-office__agent-body {
+  animation: research-lean 2s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
+@keyframes research-lean {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-2deg) translateY(-0.2px); }
+}
+
+/* ── Tool bench typing ── */
+.agent-office__agent--toolbench .agent-office__agent-body {
+  animation: typing-bob 0.4s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
+@keyframes typing-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-0.25px); }
+}
+
+/* ── Status dot pulse while working ── */
+.agent-office__agent--working .agent-office__status-dot {
+  animation: status-dot-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes status-dot-pulse {
+  0%, 100% { r: 0.5; opacity: 1; }
+  50% { r: 0.7; opacity: 0.6; }
+}
+
+/* ── Inbox tray ── */
+.agent-office__inbox-tray {
+  transition: all 0.3s;
+}
+
+.agent-office__inbox-envelope {
+  animation: inbox-drop 0.4s ease-out;
+}
+
+@keyframes inbox-drop {
+  0% { transform: translateY(-8px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+/* ── Notification lamp ── */
+.agent-office__notification-lamp {
+  transition: fill 0.5s, opacity 0.5s;
+}
+
+.agent-office__notification-lamp--active {
+  animation: lamp-glow 1.5s ease-in-out infinite;
+}
+
+@keyframes lamp-glow {
+  0%, 100% { opacity: 0.6; filter: brightness(1); }
+  50% { opacity: 1; filter: brightness(1.5); }
+}
+
+/* ── Coffee machine (ambient) ── */
+.agent-office__coffee-steam {
+  animation: steam-rise 2s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes steam-rise {
+  0% { opacity: 0.6; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-4px); }
+}
+
+/* ── Screen flicker at desks ── */
+.agent-office__screen-flicker {
+  animation: screen-glow 3s ease-in-out infinite;
+}
+
+@keyframes screen-glow {
+  0%, 100% { opacity: 0.5; }
+  30% { opacity: 0.8; }
+  50% { opacity: 0.3; }
+  80% { opacity: 0.7; }
+}
+
+/* ── 80s Ambient smoke haze ── */
+.agent-office__ambient-smoke {
+  animation: ambient-smoke-drift 18s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes ambient-smoke-drift {
+  0%, 100% { opacity: 0.02; transform: translate(0, 0) scale(1); }
+  25% { opacity: 0.05; transform: translate(4px, -2px) scale(1.1); }
+  50% { opacity: 0.03; transform: translate(-2px, 1px) scale(0.95); }
+  75% { opacity: 0.06; transform: translate(1px, -3px) scale(1.05); }
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .agent-office__agent,
+  .agent-office__agent--walking {
+    transition: transform 0.1s linear;
+  }
+
+  .agent-office__bubble,
+  .agent-office__prop--paper,
+  .agent-office__prop--envelope,
+  .agent-office__ambient-glow,
+  .agent-office__station-pulse,
+  .agent-office__alarm,
+  .agent-office__coffee-steam,
+  .agent-office__screen-flicker,
+  .agent-office__ambient-smoke,
+  .agent-office__notification-lamp--active,
+  .agent-office__ceiling-light,
+  .agent-office__ticker-tape,
+  .agent-office__clock-minute,
+  .agent-office__clock-hour,
+  .agent-office__agent--exiting,
+  .agent-office__station--active .agent-office__station-ring,
+  .agent-office__walk-trail,
+  .agent-office__shadow--walking {
+    animation: none !important;
+  }
+
+  .agent-office__agent--idle .agent-office__agent-body,
+  .agent-office__agent--working .agent-office__agent-body,
+  .agent-office__agent--arguing .agent-office__agent-body,
+  .agent-office__agent--dancing .agent-office__agent-body,
+  .agent-office__agent--dancing .agent-office__agent-head,
+  .agent-office__agent--smoking .agent-office__agent-body,
+  .agent-office__agent--walking .agent-office__agent-body,
+  .agent-office__agent--walking .agent-office__agent-head,
+  .agent-office__agent--research .agent-office__agent-body,
+  .agent-office__agent--toolbench .agent-office__agent-body,
+  .agent-office__agent--working .agent-office__status-dot,
+  .agent-office__leg-left,
+  .agent-office__leg-right,
+  .agent-office__arm-left,
+  .agent-office__arm-right,
+  .agent-office__smoke-puff,
+  .agent-office__cigarette-glow {
+    animation: none !important;
+  }
+}
+
+/* ── Tool emoji in agent hand ── */
+.agent-office__tool-emoji {
+  pointer-events: none;
+  animation: tool-emoji-bob 1.2s ease-in-out infinite;
+  filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.35));
+}
+
+@keyframes tool-emoji-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-0.5px); }
+}
+
+/* Reduced motion for tool emoji */
+@media (prefers-reduced-motion: reduce) {
+  .agent-office__tool-emoji {
+    animation: none !important;
+  }
+}
+
+/* ── Cycle complete overlay ── */
+.agent-office__complete-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(16, 24, 39, 0.7);
+  animation: overlay-appear 0.6s ease-out;
+  pointer-events: none;
+  z-index: 10;
+}
+
+@keyframes overlay-appear {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+.agent-office__complete-stamp {
+  padding: 12px 24px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.05));
+  border: 2px solid rgba(16, 185, 129, 0.4);
+  color: #10b981;
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  animation: stamp-slam 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes stamp-slam {
+  0% { transform: scale(2) rotate(-5deg); opacity: 0; }
+  60% { transform: scale(0.95) rotate(1deg); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+/* ── Error complete ── */
+.agent-office__complete-stamp--error {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.05));
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Agent Sidebar & Chat History Viewer Custom Styles
+   ═══════════════════════════════════════════════════════════ */
+
+.agent-sidebar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 400px;
+  max-width: 90%;
+  background: rgba(10, 15, 30, 0.82);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.6);
+  z-index: 20000000;
+  display: flex;
+  flex-direction: column;
+  color: #e2e8f0;
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  animation: sidebar-slide-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes sidebar-slide-in {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(0); }
+}
+
+.agent-sidebar__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.agent-sidebar__header-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.agent-sidebar__status-badge {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.agent-sidebar__title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #f1f5f9;
+}
+
+.agent-sidebar__close {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+  transition: color 0.2s, transform 0.2s;
+}
+
+.agent-sidebar__close:hover {
+  color: #f8fafc;
+  transform: scale(1.15);
+}
+
+.agent-sidebar__tabs {
+  display: flex;
+  background: rgba(0, 0, 0, 0.25);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.agent-sidebar__tab {
+  flex: 1;
+  padding: 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.agent-sidebar__tab:hover {
+  color: #cbd5e1;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.agent-sidebar__tab--active {
+  color: #6366f1;
+  border-bottom-color: #6366f1;
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.agent-sidebar__live-pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #10b981;
+  box-shadow: 0 0 6px #10b981;
+  animation: live-pulse-anim 1.2s infinite alternate;
+}
+
+@keyframes live-pulse-anim {
+  0% { transform: scale(0.8); opacity: 0.5; }
+  100% { transform: scale(1.3); opacity: 1; }
+}
+
+.agent-sidebar__content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Live Log Console Panel ── */
+.agent-sidebar__console {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #030712;
+  font-family: var(--font-mono, 'Fira Code', 'Courier New', monospace);
+  font-size: 0.75rem;
+  overflow: hidden;
+}
+
+.agent-sidebar__console-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 14px;
+  background: #111827;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 0.65rem;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.agent-sidebar__console-header .status {
+  color: #10b981;
+  font-weight: 700;
+}
+
+.agent-sidebar__console-body {
+  flex: 1;
+  padding: 14px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agent-sidebar__console-line {
+  line-height: 1.4;
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+.agent-sidebar__console-line .timestamp {
+  color: #4b5563;
+  margin-right: 6px;
+  user-select: none;
+}
+
+.log-info { color: #9ca3af; }
+.log-tool-start { color: #fbbf24; }
+.log-tool-success { color: #34d399; }
+.log-thinking { color: #60a5fa; font-style: italic; }
+.log-success { color: #10b981; font-weight: 600; }
+.log-warn { color: #f59e0b; }
+.log-error { color: #f87171; font-weight: 600; }
+
+/* ── Chat History Viewer ── */
+.agent-sidebar__history {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.agent-sidebar__history-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.15);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.agent-sidebar__select {
+  flex: 1;
+  background: #0f172a;
+  color: #e2e8f0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  outline: none;
+  cursor: pointer;
+}
+
+.agent-sidebar__select:focus {
+  border-color: #6366f1;
+}
+
+.agent-sidebar__messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.agent-sidebar__message {
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  position: relative;
+  word-wrap: break-word;
+}
+
+.agent-sidebar__message .sender-tag {
+  font-size: 0.65rem;
+  font-weight: 800;
+  margin-bottom: 4px;
+  letter-spacing: 0.5px;
+  color: #94a3b8;
+}
+
+.message-user {
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  align-self: flex-end;
+  width: 90%;
+}
+
+.message-user .sender-tag {
+  color: #818cf8;
+}
+
+.message-assistant {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-left: 3px solid #6366f1;
+  align-self: flex-start;
+  width: 90%;
+}
+
+.message-system {
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  border: none;
+}
+
+.agent-sidebar__system-prompt-toggle {
+  width: 100%;
+  padding: 6px 10px;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.agent-sidebar__system-prompt-toggle:hover {
+  color: #94a3b8;
+  background: rgba(15, 23, 42, 0.9);
+}
+
+.agent-sidebar__system-prompt-content {
+  margin-top: 6px;
+  padding: 10px;
+  background: #020617;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  color: #475569;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.68rem;
+  white-space: pre-wrap;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+/* ── Collapsible Reasoning / Thinking ── */
+.agent-sidebar__thinking-details {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 4px;
+  margin-bottom: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.agent-sidebar__thinking-summary {
+  padding: 6px 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #60a5fa;
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+  list-style-type: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.agent-sidebar__thinking-summary::-webkit-details-marker {
+  display: none;
+}
+
+.agent-sidebar__thinking-summary::before {
+  content: '▶';
+  font-size: 0.6rem;
+  transition: transform 0.2s;
+  display: inline-block;
+}
+
+.agent-sidebar__thinking-details[open] .agent-sidebar__thinking-summary::before {
+  transform: rotate(90deg);
+}
+
+.agent-sidebar__thinking-content {
+  padding: 8px 10px;
+  font-size: 0.72rem;
+  color: #93c5fd;
+  font-style: italic;
+  line-height: 1.4;
+  border-top: 1px solid rgba(255, 255, 255, 0.03);
+  font-family: var(--font-sans, system-ui, sans-serif);
+  white-space: pre-wrap;
+}
+
+/* ── Tool execution detailed blocks ── */
+.message-tool {
+  width: 100%;
+  padding: 0;
+  background: transparent;
+}
+
+.agent-sidebar__tool-details {
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.agent-sidebar__tool-summary {
+  padding: 6px 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #fbbf24;
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+}
+
+.agent-sidebar__tool-summary::-webkit-details-marker {
+  display: none;
+}
+
+.agent-sidebar__tool-summary::before {
+  content: '▶';
+  font-size: 0.6rem;
+  transition: transform 0.2s;
+  color: #6b7280;
+}
+
+.agent-sidebar__tool-details[open] .agent-sidebar__tool-summary::before {
+  transform: rotate(90deg);
+}
+
+.agent-sidebar__tool-summary .label {
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.agent-sidebar__tool-summary .name {
+  font-family: var(--font-mono, monospace);
+  background: rgba(251, 191, 36, 0.1);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.agent-sidebar__tool-result {
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  background: #020617;
+  padding: 8px;
+  overflow-x: auto;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.agent-sidebar__tool-result pre {
+  margin: 0;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.68rem;
+  color: #d1d5db;
+  white-space: pre-wrap;
+}
+
+/* ── Inline Tool Requests from Assistant ── */
+.agent-sidebar__tool-call {
+  margin-top: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 6px 10px;
+}
+
+.agent-sidebar__tool-call .label {
+  color: #94a3b8;
+  font-size: 0.7rem;
+  margin-right: 4px;
+}
+
+.agent-sidebar__tool-call .name {
+  font-family: var(--font-mono, monospace);
+  color: #fbbf24;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.agent-sidebar__tool-call .args {
+  margin: 4px 0 0 0;
+  background: #020617;
+  padding: 6px;
+  border-radius: 3px;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.68rem;
+  color: #a1a1aa;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+
+/* ── General Loader and Empty displays ── */
+.agent-sidebar__loader {
+  padding: 40px 20px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.agent-sidebar__empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: #64748b;
+  font-size: 0.75rem;
+}
+
+.agent-sidebar__loader .spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: spinner-spin 0.8s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spinner-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes agent-bubble-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes agent-cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}

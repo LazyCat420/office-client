@@ -1,0 +1,277 @@
+/* ═══════════════════════════════════════════════════════════════
+   ToolSelection — Prism-style grouped tool picker
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Container ── */
+.tool-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* ── Search input ── */
+.tool-selection__search {
+  width: 100%;
+  padding: 8px 12px 8px 32px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary, #e2e8f0);
+  font-size: 0.78rem;
+  outline: none;
+  transition: border-color 0.2s, background 0.2s;
+  margin-bottom: 8px;
+}
+
+.tool-selection__search:focus {
+  border-color: rgba(99, 102, 241, 0.5);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.tool-selection__search-wrapper {
+  position: relative;
+}
+
+.tool-selection__search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted, #64748b);
+  pointer-events: none;
+  margin-top: -4px;
+}
+
+/* ── Segmented control (view mode tabs) ── */
+.tool-selection__segments {
+  display: flex;
+  gap: 0;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+  padding: 2px;
+  margin-bottom: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.tool-selection__segment {
+  flex: 1;
+  padding: 5px 8px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted, #64748b);
+  font-size: 0.7rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.tool-selection__segment:hover {
+  color: var(--text-secondary, #94a3b8);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.tool-selection__segment--active {
+  background: rgba(99, 102, 241, 0.2);
+  color: var(--text-primary, #e2e8f0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* ── Bulk select row ── */
+.tool-selection__bulk-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  margin-bottom: 4px;
+}
+
+.tool-selection__bulk-label {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-secondary, #94a3b8);
+  cursor: pointer;
+  user-select: none;
+}
+
+.tool-selection__global-count {
+  margin-left: auto;
+  font-size: 0.65rem;
+  color: var(--text-muted, #64748b);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Scrollable tools list ── */
+.tool-selection__list {
+  max-height: 500px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.tool-selection__list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.tool-selection__list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tool-selection__list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+/* ── Domain/Label/Tier Group ── */
+.tool-selection__group {
+  margin-bottom: 2px;
+}
+
+.tool-selection__group-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  cursor: pointer;
+  border-radius: 5px;
+  transition: background 0.15s ease;
+  user-select: none;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-primary, #e2e8f0);
+}
+
+.tool-selection__group-header:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tool-selection__group-caret {
+  display: flex;
+  align-items: center;
+  color: var(--text-muted, #64748b);
+  flex-shrink: 0;
+}
+
+.tool-selection__group-icon {
+  display: flex;
+  align-items: center;
+  color: rgba(99, 102, 241, 0.7);
+  flex-shrink: 0;
+}
+
+.tool-selection__group-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tool-selection__group-count {
+  font-size: 0.62rem;
+  color: var(--text-muted, #64748b);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.tool-selection__group-checkbox {
+  flex-shrink: 0;
+}
+
+.tool-selection__group-content {
+  padding-left: 14px;
+  border-left: 1px solid rgba(255, 255, 255, 0.04);
+  margin-left: 14px;
+}
+
+/* ── Individual tool row ── */
+.tool-selection__tool {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 0.76rem;
+  color: var(--text-primary, #e2e8f0);
+}
+
+.tool-selection__tool:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tool-selection__tool input[type="checkbox"] {
+  cursor: pointer;
+  accent-color: #6366f1;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+}
+
+.tool-selection__tool-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 400;
+  color: var(--text-primary, #e2e8f0);
+}
+
+.tool-selection__tool-source {
+  font-size: 0.62rem;
+  color: var(--text-muted, #64748b);
+  opacity: 0.6;
+  flex-shrink: 0;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Tooltip ── */
+.tool-selection__tool[title] {
+  position: relative;
+}
+
+/* ── Empty state ── */
+.tool-selection__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  gap: 8px;
+  text-align: center;
+}
+
+.tool-selection__empty-icon {
+  color: var(--text-muted, #64748b);
+  opacity: 0.5;
+}
+
+.tool-selection__empty-text {
+  font-size: 0.75rem;
+  color: var(--text-muted, #64748b);
+}
+
+.tool-selection__empty-subtext {
+  font-size: 0.68rem;
+  color: var(--text-muted, #64748b);
+  opacity: 0.6;
+}
+
+/* ── Checkbox styling ── */
+.tool-selection__bulk-row input[type="checkbox"],
+.tool-selection__group-checkbox input[type="checkbox"] {
+  cursor: pointer;
+  accent-color: #6366f1;
+  width: 14px;
+  height: 14px;
+}

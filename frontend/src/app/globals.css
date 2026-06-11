@@ -1,0 +1,405 @@
+/* ══════════════════════════════════════════════════════════════════════
+   Office Client — Design Tokens & Base Styles
+   Extracted from LazyTrader V2 trading-client globals.css
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── Tokens ───────────────────────────────────────────────────────── */
+:root {
+  --font-sans: 'Inter', 'Outfit', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  --bg-root: #000000;
+  --bg-primary: #050505;
+  --bg-secondary: #0a0a0a;
+  --bg-tertiary: #111111;
+  --bg-hover: #1a1a1a;
+  --bg-glass: #0a0a0a;
+
+  --border: #333333;
+  --border-bright: #555555;
+  --border-accent: #ffffff;
+  --border-brutal: 1px solid #333333;
+
+  --text-primary: #e8e8e8;
+  --text-secondary: #999999;
+  --text-muted: #8a8a8a;
+  --text-bright: #ffffff;
+
+  --accent: #ffffff;
+  --accent-bg: rgba(255, 255, 255, 0.06);
+  --accent-bright: #ffffff;
+  --accent-dim: rgba(255, 255, 255, 0.3);
+
+  --teal: #cccccc;
+  --teal-bg: rgba(255, 255, 255, 0.05);
+  --purple: #bbbbbb;
+  --purple-bg: rgba(255, 255, 255, 0.05);
+
+  --buy: #ffffff;
+  --buy-bg: rgba(255, 255, 255, 0.10);
+  --sell: #cccccc;
+  --sell-bg: rgba(200, 200, 200, 0.10);
+  --hold: #999999;
+  --hold-bg: rgba(153, 153, 153, 0.08);
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+
+  --space-xs: 6px;
+  --space-sm: 10px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 36px;
+
+  --transition-fast: 0.1s ease;
+  --transition-med: 0.2s ease;
+
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  --shadow-glow: none;
+  --shadow-brutal: none;
+}
+
+/* ── Reset ────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg-root);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  overflow: hidden;
+}
+
+/* ── Scrollbar ────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ── Buttons ──────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: inherit;
+}
+.btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-primary {
+  background: var(--accent);
+  color: #000000;
+  border-color: var(--accent);
+}
+.btn-primary:hover {
+  background: var(--accent-bright);
+  color: #000000;
+}
+
+.btn-sm { padding: 4px 10px; font-size: 0.75rem; }
+
+/* ── Inputs ───────────────────────────────────────────────────────── */
+.input {
+  padding: 8px 12px;
+  font-size: 0.83rem;
+  background: var(--bg-root);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: inherit;
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+.input:focus { border-color: var(--accent); }
+.input::placeholder { color: var(--text-muted); }
+
+/* ── Badges ───────────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: 1px solid currentColor;
+}
+.badge-buy { background: var(--buy-bg); color: var(--buy); border-color: var(--buy); }
+.badge-sell { background: var(--sell-bg); color: var(--sell); border-color: var(--sell); }
+.badge-hold { background: var(--hold-bg); color: var(--hold); border-color: var(--hold); }
+.badge-info { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); }
+.badge-teal { background: var(--teal-bg); color: var(--teal); border-color: var(--teal); }
+
+/* ── Cards ────────────────────────────────────────────────────────── */
+.card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  transition: border-color var(--transition-med);
+}
+.card:hover { border-color: var(--accent); }
+
+/* ── Spinner ──────────────────────────────────────────────────────── */
+.spinner {
+  width: 20px; height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Pulse Dot ────────────────────────────────────────────────────── */
+.pulse-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  background: var(--text-muted);
+}
+.pulse-dot.online {
+  background: var(--buy);
+  box-shadow: 0 0 6px var(--buy);
+  animation: pulse 2s infinite;
+}
+.pulse-dot.warning { background: var(--hold); }
+.pulse-dot.offline { background: var(--sell); }
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ── Chat Bubbles ─────────────────────────────────────────────────── */
+.chat-bubble {
+  max-width: 80%;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-size: 0.74rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.chat-user {
+  background: var(--accent-bg);
+  border: 1px solid var(--border-accent);
+  margin-left: auto;
+}
+.chat-bot {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+}
+
+.streaming-cursor {
+  display: inline;
+  color: var(--accent);
+  font-weight: 400;
+  animation: blink-cursor 0.8s step-end infinite;
+}
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* ── Utility ──────────────────────────────────────────────────────── */
+.mono { font-family: var(--font-mono); }
+.text-muted { color: var(--text-muted); }
+.text-secondary { color: var(--text-secondary); }
+
+/* ── Empty State ──────────────────────────────────────────────────── */
+.empty-state {
+  text-align: center;
+  padding: var(--space-xl);
+  color: var(--text-muted);
+}
+
+/* ── Checkbox ─────────────────────────────────────────────────────── */
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.83rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.checkbox-row input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+}
+
+/* ── Tables ───────────────────────────────────────────────────────── */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+thead th {
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border);
+}
+tbody td {
+  padding: 10px 12px;
+  font-size: 0.83rem;
+  border-bottom: 1px solid var(--border);
+}
+tbody tr:hover { background: var(--bg-hover); }
+
+/* ── App Layout (office-specific) ─────────────────────────────────── */
+.office-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.office-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border);
+  min-height: 44px;
+  gap: 12px;
+}
+
+.office-toolbar-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-bright);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.office-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.office-content {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+
+.office-main {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.office-sidebar {
+  width: 380px;
+  min-width: 320px;
+  max-width: 500px;
+  border-left: 1px solid var(--border);
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.office-sidebar.collapsed {
+  width: 0;
+  min-width: 0;
+  border: none;
+  overflow: hidden;
+}
+
+/* ── Tab Navigation ───────────────────────────────────────────────── */
+.tab-bar {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  padding: 0 8px;
+  gap: 2px;
+}
+
+.tab-item {
+  padding: 8px 14px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all var(--transition-fast);
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  font-family: inherit;
+}
+
+.tab-item:hover {
+  color: var(--text-primary);
+}
+
+.tab-item.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 700;
+}
+
+/* ── Mute Button ──────────────────────────────────────────────────── */
+.mute-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: inherit;
+}
+
+.mute-btn:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.mute-btn.unmuted {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-bg);
+}
+
+/* ── Status Indicator ─────────────────────────────────────────────── */
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}

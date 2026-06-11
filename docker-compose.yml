@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  office-client:
+    image: office-client:latest
+    container_name: office-client
+    restart: unless-stopped
+    ports:
+      - "3035:3035"
+    environment:
+      - TZ=America/Los_Angeles
+      - NODE_ENV=production
+    volumes:
+      - /usr/share/zoneinfo/America/Los_Angeles:/etc/localtime:ro
+    healthcheck:
+      test: ["CMD", "node", "-e", "const h=require('http');h.get('http://127.0.0.1:3035/',r=>{process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
