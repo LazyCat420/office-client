@@ -20,7 +20,8 @@ export function cleanAgentId(agentName) {
   const lower = agentName.toLowerCase().trim();
   if (NON_PIPELINE_AGENTS.has(lower)) return null;
 
-  const clean = agentName.replace(/^CUSTOM_/, '');
+  // Strip common prefixes used by trading-service
+  const clean = agentName.replace(/^CUSTOM_/, '').replace(/^DELEGATION_/, '');
 
   if (clean === 'SYSTEM_JANITOR_AGENT' || clean === 'DATA_JANITOR_AGENT' || clean === 'DATA_JANITOR_CRITIC_AGENT' || clean.toLowerCase().includes('janitor')) {
     return 'DATA_JANITOR';
@@ -30,6 +31,13 @@ export function cleanAgentId(agentName) {
   const cleanLower = clean.toLowerCase();
   if (cleanLower.includes('bullish') || cleanLower.includes('bull_')) return 'BULLISH_DEBATER';
   if (cleanLower.includes('bearish') || cleanLower.includes('bear_')) return 'BEARISH_DEBATER';
+
+  // Map persona-keyed agent names to their 3D office counterparts
+  if (cleanLower === 'fundamental' || cleanLower === 'fundamental_agent') return 'QUANT_RESEARCH_AGENT';
+  if (cleanLower === 'behavioral' || cleanLower === 'sentiment_agent') return 'BULLISH_DEBATER';
+  if (cleanLower === 'risk') return 'PRE_TRADE_RISK';
+  if (cleanLower === 'pm' || cleanLower === 'portfolio_allocator') return 'PORTFOLIO_ALLOCATOR';
+  if (cleanLower === 'quant') return 'QUANT_RESEARCH_AGENT';
   
   if (cleanLower.includes('worker_')) {
     const match = clean.match(/(.*)_worker_(\d+)/i);
