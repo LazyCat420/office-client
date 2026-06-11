@@ -79,7 +79,7 @@ export function TelemetryProvider({ children }: { children: React.ReactNode }) {
     // This catches cycle-end transitions the SSE stream might miss
     // due to reconnect gaps or JSON dedup.
     const heartbeatInterval = setInterval(() => {
-      if (isSubscribed && !isSSEActive) {
+      if (isSubscribed) {
         loadCycleStatus(true); // summary_only=true to minimize bandwidth
       }
     }, 10_000);
