@@ -299,13 +299,18 @@ export async function executeSpeech({ quote, agent, sceneEl, onProgress }) {
     await audioCtx.resume().catch(() => {});
   }
 
-  // Attempt Piper TTS backend first
+    // Attempt Piper TTS backend first
   try {
-    const ttsResponse = await fetch('/api/v1/tts/synthesize', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: cleanText, voice_accent: requestedAccent })
-    });
+    let ttsResponse;
+    if (item.audioPromise) {
+      ttsResponse = await item.audioPromise;
+    } else {
+      ttsResponse = await fetch('/api/v1/tts/synthesize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: cleanText, voice_accent: requestedAccent })
+      });
+    }
 
     if (!ttsResponse.ok) throw new Error("Piper TTS HTTP error " + ttsResponse.status);
 
@@ -446,6 +451,24 @@ async function processQueue() {
 }
 
 export function triggerAgentSpeech(quote, agent, sceneEl, onProgress) {
-  speechQueue.push({ quote, agent, sceneEl, onProgress });
+  const archetype = resolveArchetype(agent);
+  const textToSpeak = quote || getFallbackQuote(archetype);
+  const cleanText = textToSpeak ? textToSpeak.replace(/[*_`~#]/g, '') : '';
+  const requestedAccent = agent?.voice_accent || agent?.avatar_config?.voice_accent || "default";
+
+  // Pre-fetch TTS audio to hide latency if there's a queue!
+  let audioPromise = null;
+  if (typeof window !== 'undefined' && audioEnabled && cleanText) {
+    audioPromise = fetch('/api/v1/tts/synthesize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: cleanText, voice_accent: requestedAccent })
+    }).catch(err => {
+      console.warn("Pre-fetch TTS failed:", err);
+      throw err;
+    });
+  }
+
+  speechQueue.push({ quote, agent, sceneEl, onProgress, audioPromise });
   processQueue();
 }

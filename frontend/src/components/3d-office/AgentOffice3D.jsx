@@ -141,6 +141,23 @@ export default function AgentOffice3D({ events, status, phase, audioEnabled = fa
       }
     };
 
+    // Provide immediate visual feedback that the webhook was received
+    // The agent is "thinking" while the TTS audio is being generated/queued.
+    setAgents(prev => {
+      const targetAgent = prev[targetId] || agent;
+      return {
+        ...prev,
+        [targetId]: {
+          ...targetAgent,
+          bubble: '...',
+          fullBubble: event.quote,
+          bubbleType: 'thinking',
+          isSpeaking: false,
+          lastActionTime: Date.now()
+        }
+      };
+    });
+
     // Always use triggerAgentSpeech to queue voice & bubble sequentially (handles simulated typing internally when muted)
     triggerAgentSpeech(event.quote, agent, null, onSpeechProgress);
   }, []);
