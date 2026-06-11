@@ -239,12 +239,30 @@ export function AgentDetailsSidebar({ agentId, agentColor, onClose, isRunning })
             type = isError ? 'error' : 'tool-success';
             result = data.toolResult || null;
           } else if (eventType === 'generation.started') {
+            const rawAgent = data.agent || (data.requestPayload && data.requestPayload.agent);
+            if (rawAgent) {
+              const parsedAgentId = cleanAgentId(rawAgent);
+              if (!parsedAgentId || parsedAgentId.toLowerCase() !== agentId.toLowerCase()) return;
+            }
             text = `🧠 LLM generating response / thinking...`;
             type = 'thinking';
           } else if (eventType === 'generation.completed') {
+            const rawAgent = data.agent || (data.requestPayload && data.requestPayload.agent);
+            if (rawAgent) {
+              const parsedAgentId = cleanAgentId(rawAgent);
+              if (!parsedAgentId || parsedAgentId.toLowerCase() !== agentId.toLowerCase()) return;
+            } else {
+              // Ignore generation.completed events that do not carry agent context
+              return;
+            }
             text = `✨ LLM generation completed`;
             type = 'success';
           } else if (eventType === 'request.created') {
+            const rawAgent = data.agent || (data.requestPayload && data.requestPayload.agent);
+            if (rawAgent) {
+              const parsedAgentId = cleanAgentId(rawAgent);
+              if (!parsedAgentId || parsedAgentId.toLowerCase() !== agentId.toLowerCase()) return;
+            }
             const isSuccess = data.success !== false;
             const inputT = data.inputTokens || 0;
             const outputT = data.outputTokens || 0;
