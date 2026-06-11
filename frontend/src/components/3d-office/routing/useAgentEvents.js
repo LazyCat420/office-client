@@ -349,6 +349,17 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
               status: 'error',
               ts: Date.now()
             };
+          } else if (body.includes('Fired due to poor performance') || body.includes('Agent fired')) {
+            const station = 'window';
+            mappedEvent = {
+              type: `${station}_error`,
+              agentId,
+              station,
+              tool: 'error',
+              label: `${agentId} fired!`,
+              status: 'error',
+              ts: Date.now()
+            };
           }
 
           if (mappedEvent) {

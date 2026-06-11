@@ -100,6 +100,13 @@ export const STATIONS = {
     color: '#64748b', icon: '🚪', slots: 20,
     angle: 0,
   },
+  window: {
+    id: 'window', label: 'Window',
+    x: 0, z: -31,
+    width: 4, depth: 2,
+    color: '#ef4444', icon: '🪟', slots: 5,
+    angle: 0,
+  },
 };
 
 export const AGENT_STATES = {
@@ -110,6 +117,7 @@ export const AGENT_STATES = {
   EMITTING: 'emitting',
   ERROR: 'error',
   EXITING: 'exiting',
+  FIRED: 'fired',
 };
 
 const stationOccupancy = {};
@@ -287,6 +295,11 @@ const STATION_SPOTS = {
     { x: 0, z: 27, facing: 0 },
     { x: 1.5, z: 27, facing: 0 },
   ],
+  window: [
+    { x: 0, z: -31, facing: Math.PI },
+    { x: -2, z: -30.8, facing: Math.PI },
+    { x: 2, z: -30.8, facing: Math.PI },
+  ],
 };
 
 function getSlotPosition(stationId, slotIndex, agentId) {
@@ -439,6 +452,8 @@ export function arriveAgent(agent) {
     nextState = AGENT_STATES.EXITING;
   } else if (arrivedStation === 'error') {
     nextState = AGENT_STATES.ERROR;
+  } else if (arrivedStation === 'window') {
+    nextState = AGENT_STATES.FIRED;
   }
   
   const animVariant = getToolAnimVariant(agent.tool, agent.id, arrivedStation, agent.toolEmoji);

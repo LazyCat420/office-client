@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import * as THREE from 'three';
 import { RigidBody, CuboidCollider } from '@react-three/rapier';
 
@@ -19,6 +19,50 @@ const FLOOR_H = 0.15;      // Floor slab thickness
 const CEILING_Y = 4.5;     // Ceiling height
 const MULLION_COUNT_V = 6;  // Vertical mullion divisions
 const MULLION_COUNT_H = 3;  // Horizontal mullion divisions
+
+// Glass shard component for shattered window effect
+function ShatteredGlass({ active }) {
+  const shards = useMemo(() => {
+    if (!active) return [];
+    const arr = [];
+    for (let i = 0; i < 40; i++) {
+      // Randomize within the window pane dimensions (width ~4, height ~4)
+      const xOffset = (Math.random() - 0.5) * 4.0;
+      const yOffset = (Math.random() - 0.5) * 4.0;
+      
+      // Explosion impulse directed outwards (-Z and slightly up)
+      const forceX = (Math.random() - 0.5) * 5;
+      const forceY = Math.random() * 5;
+      const forceZ = -10 - Math.random() * 10;
+      
+      const rot = [Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI];
+      
+      arr.push({
+        id: i,
+        pos: [xOffset, CEILING_Y / 2 + yOffset, -BLDG_R],
+        rot,
+        force: { x: forceX, y: forceY, z: forceZ },
+        scale: 0.2 + Math.random() * 0.4
+      });
+    }
+    return arr;
+  }, [active]);
+
+  if (!active) return null;
+
+  return (
+    <>
+      {shards.map(s => (
+        <RigidBody key={s.id} position={s.pos} rotation={s.rot} linearVelocity={[s.force.x, s.force.y, s.force.z]}>
+          <mesh>
+            <polyhedronGeometry args={[[1,1,1, -1,-1,1, -1,1,-1, 1,-1,-1], [2,1,0, 0,3,2, 1,3,0, 2,3,1], s.scale, 0]} />
+            <meshPhysicalMaterial color="#88bbdd" transparent opacity={0.6} roughness={0.02} metalness={0.1} clearcoat={1.0} />
+          </mesh>
+        </RigidBody>
+      ))}
+    </>
+  );
+}
 
 function createFacadeTexture() {
   if (typeof document === 'undefined') return null;
@@ -107,6 +151,17 @@ function createFacadeTexture() {
 }
 
 export function SkyscraperShell() {
+  const [isBroken, setIsBroken] = useState(false);
+
+  useEffect(() => {
+    const onBreak = () => {
+      setIsBroken(true);
+      // Auto-repair window after 15 seconds
+      setTimeout(() => setIsBroken(false), 15000);
+    };
+    window.addEventListener('break-window', onBreak);
+    return () => window.removeEventListener('break-window', onBreak);
+  }, []);
   // Column positions around the perimeter
   const columns = useMemo(() => {
     const cols = [];
@@ -224,8 +279,13 @@ export function SkyscraperShell() {
       {/* ══════════════════════════════════════════
           GLASS CURTAIN WALL — Transparent cylinder
           ══════════════════════════════════════════ */}
+      {/* If broken, create a gap at the back window (around angle PI) */}
       <mesh position={[0, CEILING_Y / 2, 0]}>
-        <cylinderGeometry args={[BLDG_R + 0.1, BLDG_R + 0.1, CEILING_Y, 64, 1, true]} />
+        <cylinderGeometry args={[
+          BLDG_R + 0.1, BLDG_R + 0.1, CEILING_Y, 64, 1, true, 
+          isBroken ? Math.PI + 0.1 : 0, 
+          isBroken ? Math.PI * 2 - 0.2 : Math.PI * 2
+        ]} />
         <meshPhysicalMaterial
           color="#88bbdd"
           transparent
@@ -241,7 +301,11 @@ export function SkyscraperShell() {
 
       {/* Glass inner reflection layer (subtle) */}
       <mesh position={[0, CEILING_Y / 2, 0]}>
-        <cylinderGeometry args={[BLDG_R - 0.05, BLDG_R - 0.05, CEILING_Y, 64, 1, true]} />
+        <cylinderGeometry args={[
+          BLDG_R - 0.05, BLDG_R - 0.05, CEILING_Y, 64, 1, true,
+          isBroken ? Math.PI + 0.1 : 0, 
+          isBroken ? Math.PI * 2 - 0.2 : Math.PI * 2
+        ]} />
         <meshPhysicalMaterial
           color="#aaccee"
           transparent
@@ -251,6 +315,8 @@ export function SkyscraperShell() {
           side={THREE.BackSide}
         />
       </mesh>
+
+      <ShatteredGlass active={isBroken} />
 
       {/* ══════════════════════════════════════════
           STRUCTURAL COLUMNS — Dark steel I-beams
