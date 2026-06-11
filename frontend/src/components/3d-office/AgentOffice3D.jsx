@@ -81,12 +81,14 @@ export default function AgentOffice3D({ events, status, phase, audioEnabled = fa
       agent = createAgent(cleanId, Date.now());
     }
 
+    const targetId = agent.id || cleanId;
+
     const onSpeechProgress = (textSoFar, isComplete) => {
       setAgents(prev => {
-        const targetAgent = prev[cleanId] || agent;
+        const targetAgent = prev[targetId] || agent;
         return {
           ...prev,
-          [cleanId]: {
+          [targetId]: {
             ...targetAgent,
             bubble: textSoFar,
             fullBubble: event.quote,
@@ -98,16 +100,16 @@ export default function AgentOffice3D({ events, status, phase, audioEnabled = fa
       });
 
       if (isComplete) {
-        if (bubbleTimersRef.current[cleanId]) {
-          clearTimeout(bubbleTimersRef.current[cleanId]);
+        if (bubbleTimersRef.current[targetId]) {
+          clearTimeout(bubbleTimersRef.current[targetId]);
         }
-        bubbleTimersRef.current[cleanId] = setTimeout(() => {
+        bubbleTimersRef.current[targetId] = setTimeout(() => {
           setAgents(prev => {
-            if (!prev[cleanId]) return prev;
+            if (!prev[targetId]) return prev;
             return {
               ...prev,
-              [cleanId]: {
-                ...prev[cleanId],
+              [targetId]: {
+                ...prev[targetId],
                 bubble: null,
                 fullBubble: null,
                 bubbleType: 'info',
@@ -115,36 +117,13 @@ export default function AgentOffice3D({ events, status, phase, audioEnabled = fa
               }
             };
           });
-          delete bubbleTimersRef.current[cleanId];
+          delete bubbleTimersRef.current[targetId];
         }, 6000); // 6 seconds duration for voice bubbles after finishing
       }
     };
 
-    if (audioEnabledRef.current && window.speechSynthesis) {
-      triggerAgentSpeech(event.quote, agent, null, onSpeechProgress);
-    } else {
-      // Simulated typing effect when audio is disabled or unavailable
-      let cleanText = event.quote ? event.quote.replace(/[*_`~#]/g, '') : '';
-      let words = cleanText.split(' ').filter(w => w.length > 0);
-      if (words.length === 0) {
-        onSpeechProgress('', true);
-      } else {
-        let currentWordIndex = 0;
-        const typeNextWord = () => {
-          if (currentWordIndex < words.length) {
-            let textSoFar = words.slice(0, currentWordIndex + 1).join(' ');
-            let isComplete = currentWordIndex === words.length - 1;
-            onSpeechProgress(textSoFar, isComplete);
-            if (!isComplete) {
-              currentWordIndex++;
-              // ~200ms per word simulates standard talking speed (~300 WPM)
-              setTimeout(typeNextWord, 200);
-            }
-          }
-        };
-        typeNextWord();
-      }
-    }
+    // Always use triggerAgentSpeech to queue voice & bubble sequentially (handles simulated typing internally when muted)
+    triggerAgentSpeech(event.quote, agent, null, onSpeechProgress);
   }, []);
 
   // Wire useAgentEvents with voice callback — single Prism SSE handles

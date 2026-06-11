@@ -256,8 +256,34 @@ export async function executeSpeech({ quote, agent, sceneEl, onProgress }) {
   const cleanText = textToSpeak ? textToSpeak.replace(/[*_`~#]/g, '') : '';
 
   if (typeof window === 'undefined' || !audioEnabled) {
-    if (onProgress) onProgress(cleanText, true);
-    return;
+    if (!cleanText) return;
+    const words = cleanText.split(' ').filter(w => w.length > 0);
+    if (words.length === 0) {
+      if (onProgress) onProgress('', true);
+      return;
+    }
+    return new Promise((resolve) => {
+      let currentWordIndex = 0;
+      let wordTimeout = null;
+      const typeNextWord = () => {
+        if (currentWordIndex < words.length) {
+          const textSoFar = words.slice(0, currentWordIndex + 1).join(' ');
+          const isComplete = currentWordIndex === words.length - 1;
+          if (onProgress) onProgress(textSoFar, isComplete);
+          if (!isComplete) {
+            currentWordIndex++;
+            wordTimeout = setTimeout(typeNextWord, 200); // 200ms per word simulates standard talking speed
+          } else {
+            resolve();
+          }
+        }
+      };
+      currentReject = () => {
+        if (wordTimeout) clearTimeout(wordTimeout);
+        resolve();
+      };
+      typeNextWord();
+    });
   }
 
   if (!cleanText) return;
@@ -299,7 +325,28 @@ export async function executeSpeech({ quote, agent, sceneEl, onProgress }) {
       bufferSource.connect(gainNode);
       gainNode.connect(audioCtx.destination);
 
+      const durationSec = decodedAudioBuffer.duration;
+      const actualDurationMs = (durationSec * 1000) / customPlaybackRate;
+      const words = cleanText.split(' ').filter(w => w.length > 0);
+      const msPerWord = actualDurationMs / Math.max(words.length, 1);
+
+      let wordTimeout = null;
+      let currentWordIndex = 0;
+
+      const triggerNextWord = () => {
+        if (currentWordIndex < words.length) {
+          const textSoFar = words.slice(0, currentWordIndex + 1).join(' ');
+          const isComplete = currentWordIndex === words.length - 1;
+          if (onProgress) onProgress(textSoFar, isComplete);
+          if (!isComplete) {
+            currentWordIndex++;
+            wordTimeout = setTimeout(triggerNextWord, msPerWord);
+          }
+        }
+      };
+
       currentReject = () => {
+        if (wordTimeout) clearTimeout(wordTimeout);
         try {
           bufferSource.stop();
         } catch (e) {}
@@ -308,11 +355,14 @@ export async function executeSpeech({ quote, agent, sceneEl, onProgress }) {
 
       bufferSource.onended = () => {
         currentReject = null;
+        if (wordTimeout) clearTimeout(wordTimeout);
         if (onProgress) onProgress(cleanText, true);
         resolve();
       };
 
-      if (onProgress) onProgress(cleanText, false);
+      // Start word-by-word progress in sync with audio playback duration
+      triggerNextWord();
+
       console.log(`[PiperTTS] Speaking (${requestedAccent}): "${textToSpeak}" at volume ${volume.toFixed(2)}`);
       bufferSource.start(0);
     });
