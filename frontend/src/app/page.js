@@ -8,9 +8,7 @@ import { initializeAudio, disableAudio } from '@/components/agent-office/audioCo
 import { soundManager } from '@/components/3d-office/SoundManager';
 import ErrorBoundary from '@/components/ErrorBoundary';
 
-// Lazy-load heavy 3D and Agent Studio components
 const AgentOffice3D = dynamic(() => import('@/components/3d-office/AgentOffice3D'), { ssr: false });
-const AgentStudio = dynamic(() => import('@/components/agent-studio/AgentStudio'), { ssr: false });
 
 function OfficeApp() {
   const { currentCycle } = useTelemetry();
@@ -45,9 +43,6 @@ function OfficeApp() {
     }
   }, [isMuted]);
 
-  // Sidebar tab
-  const [sidebarTab, setSidebarTab] = useState('studio');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Pipeline status display
   const pipelineStatus = cycleStatus?.status || 'idle';
@@ -76,12 +71,6 @@ function OfficeApp() {
           >
             {isMuted ? '🔇 Muted' : '🔊 Audio On'}
           </button>
-          <button
-            className="btn btn-sm"
-            onClick={() => setSidebarOpen(prev => !prev)}
-          >
-            {sidebarOpen ? '◀ Hide Panel' : '▶ Show Panel'}
-          </button>
         </div>
       </div>
 
@@ -97,28 +86,6 @@ function OfficeApp() {
               audioEnabled={!isMuted}
             />
           </ErrorBoundary>
-        </div>
-
-        {/* Sidebar: Agent Studio */}
-        <div className={`office-sidebar ${!sidebarOpen ? 'collapsed' : ''}`}>
-          {sidebarOpen && (
-            <>
-              <div className="tab-bar">
-                <button
-                  className={`tab-item ${sidebarTab === 'studio' ? 'active' : ''}`}
-                  onClick={() => setSidebarTab('studio')}
-                >
-                  🎨 Agent Studio
-                </button>
-              </div>
-
-              <div style={{ flex: 1, overflow: 'auto', padding: '12px' }}>
-                <ErrorBoundary>
-                  {sidebarTab === 'studio' && <AgentStudio />}
-                </ErrorBoundary>
-              </div>
-            </>
-          )}
         </div>
       </div>
     </div>
