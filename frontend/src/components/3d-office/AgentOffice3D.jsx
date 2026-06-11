@@ -16,9 +16,6 @@ import '../agent-office/agentOffice.css';
 
 
 export default function AgentOffice3D({ events, status, phase, audioEnabled = false }) {
-  const { agents, setAgents, isRunning: isRunningInternal } = useAgentEvents(events, status);
-  const isRunning = isRunningInternal;
-  
   const bubbleTimersRef = useRef({});
   const [isExpanded, setIsExpanded] = useState(true);
 
@@ -63,6 +60,105 @@ export default function AgentOffice3D({ events, status, phase, audioEnabled = fa
     return () => { cancelled = true; };
   }, []);
 
+  // Voice event handler — receives agent_voice events from the unified Prism SSE
+  // in useAgentEvents (eliminating the need for a duplicate SSE connection).
+  const agentsRef = useRef({});
+  const handleVoiceEvent = React.useCallback((event) => {
+    if (event.type !== 'agent_voice') return;
+
+    const cleanId = cleanAgentId(event.agentId);
+    if (!cleanId) return; // Skip non-pipeline chat agents
+
+    let agent = agentsRef.current[cleanId];
+    if (!agent) {
+      const keys = Object.keys(agentsRef.current);
+      const workerKey = keys.find(k => k.startsWith(cleanId));
+      if (workerKey) {
+        agent = agentsRef.current[workerKey];
+      }
+    }
+    if (!agent) {
+      agent = createAgent(cleanId, Date.now());
+    }
+
+    const onSpeechProgress = (textSoFar, isComplete) => {
+      setAgents(prev => {
+        const targetAgent = prev[cleanId] || agent;
+        return {
+          ...prev,
+          [cleanId]: {
+            ...targetAgent,
+            bubble: textSoFar,
+            fullBubble: event.quote,
+            bubbleType: 'voice',
+            isSpeaking: !isComplete,
+            lastActionTime: Date.now()
+          }
+        };
+      });
+
+      if (isComplete) {
+        if (bubbleTimersRef.current[cleanId]) {
+          clearTimeout(bubbleTimersRef.current[cleanId]);
+        }
+        bubbleTimersRef.current[cleanId] = setTimeout(() => {
+          setAgents(prev => {
+            if (!prev[cleanId]) return prev;
+            return {
+              ...prev,
+              [cleanId]: {
+                ...prev[cleanId],
+                bubble: null,
+                fullBubble: null,
+                bubbleType: 'info',
+                isSpeaking: false
+              }
+            };
+          });
+          delete bubbleTimersRef.current[cleanId];
+        }, 6000); // 6 seconds duration for voice bubbles after finishing
+      }
+    };
+
+    if (audioEnabledRef.current && window.speechSynthesis) {
+      triggerAgentSpeech(event.quote, agent, null, onSpeechProgress);
+    } else {
+      // Simulated typing effect when audio is disabled or unavailable
+      let cleanText = event.quote ? event.quote.replace(/[*_`~#]/g, '') : '';
+      let words = cleanText.split(' ').filter(w => w.length > 0);
+      if (words.length === 0) {
+        onSpeechProgress('', true);
+      } else {
+        let currentWordIndex = 0;
+        const typeNextWord = () => {
+          if (currentWordIndex < words.length) {
+            let textSoFar = words.slice(0, currentWordIndex + 1).join(' ');
+            let isComplete = currentWordIndex === words.length - 1;
+            onSpeechProgress(textSoFar, isComplete);
+            if (!isComplete) {
+              currentWordIndex++;
+              // ~200ms per word simulates standard talking speed (~300 WPM)
+              setTimeout(typeNextWord, 200);
+            }
+          }
+        };
+        typeNextWord();
+      }
+    }
+  }, []);
+
+  // Wire useAgentEvents with voice callback — single Prism SSE handles
+  // both webhook events (tool calls, generation) and agent_voice events
+  const { agents, setAgents, isRunning: isRunningInternal } = useAgentEvents(
+    events, status, { onVoiceEvent: handleVoiceEvent }
+  );
+  const isRunning = isRunningInternal;
+
+  // Keep agentsRef in sync for the voice handler closure
+  useEffect(() => {
+    agentsRef.current = agents;
+  }, [agents]);
+
   // Merge avatar_config into agents whenever agents update
   useEffect(() => {
     const map = personaMapRef.current;
@@ -94,115 +190,6 @@ export default function AgentOffice3D({ events, status, phase, audioEnabled = fa
       setAgents(updated);
     }
   }, [agents, setAgents]);
-
-  const agentsRef = useRef(agents);
-  useEffect(() => {
-    agentsRef.current = agents;
-  }, [agents]);
-
-  // SSE for agent_voice events — listens for voice quotes from the backend
-  useEffect(() => {
-    if (!isRunning) return;
-
-    let eventSource = null;
-    let cancelled = false;
-    const streamUrl = '/api/v1/prism/stream?events=request.tool_call.started,request.tool_call.completed,generation.started,generation.completed,request.created';
-
-    try {
-      eventSource = new EventSource(streamUrl);
-      eventSource.onmessage = (e) => {
-        if (cancelled) return;
-        try {
-          const event = JSON.parse(e.data);
-          if (event.type === 'agent_voice') {
-            const cleanId = cleanAgentId(event.agentId);
-            if (!cleanId) return; // Skip non-pipeline chat agents
-            let agent = agentsRef.current[cleanId];
-            if (!agent) {
-              const keys = Object.keys(agentsRef.current);
-              const workerKey = keys.find(k => k.startsWith(cleanId));
-              if (workerKey) {
-                agent = agentsRef.current[workerKey];
-              }
-            }
-            if (!agent) {
-              agent = createAgent(cleanId, Date.now());
-            }
-
-            const onSpeechProgress = (textSoFar, isComplete) => {
-              setAgents(prev => {
-                const targetAgent = prev[cleanId] || agent;
-                return {
-                  ...prev,
-                  [cleanId]: {
-                    ...targetAgent,
-                    bubble: textSoFar,
-                    fullBubble: event.quote,
-                    bubbleType: 'voice',
-                    isSpeaking: !isComplete,
-                    lastActionTime: Date.now()
-                  }
-                };
-              });
-
-              if (isComplete) {
-                if (bubbleTimersRef.current[cleanId]) {
-                  clearTimeout(bubbleTimersRef.current[cleanId]);
-                }
-                bubbleTimersRef.current[cleanId] = setTimeout(() => {
-                  setAgents(prev => {
-                    if (!prev[cleanId]) return prev;
-                    return {
-                      ...prev,
-                      [cleanId]: {
-                        ...prev[cleanId],
-                        bubble: null,
-                        fullBubble: null,
-                        bubbleType: 'info',
-                        isSpeaking: false
-                      }
-                    };
-                  });
-                  delete bubbleTimersRef.current[cleanId];
-                }, 6000); // 6 seconds duration for voice bubbles after finishing
-              }
-            };
-
-            if (audioEnabledRef.current && window.speechSynthesis) {
-              triggerAgentSpeech(event.quote, agent, null, onSpeechProgress);
-            } else {
-              // Simulated typing effect when audio is disabled or unavailable
-              let cleanText = event.quote ? event.quote.replace(/[*_`~#]/g, '') : '';
-              let words = cleanText.split(' ').filter(w => w.length > 0);
-              if (words.length === 0) {
-                onSpeechProgress('', true);
-              } else {
-                let currentWordIndex = 0;
-                const typeNextWord = () => {
-                  if (currentWordIndex < words.length) {
-                    let textSoFar = words.slice(0, currentWordIndex + 1).join(' ');
-                    let isComplete = currentWordIndex === words.length - 1;
-                    onSpeechProgress(textSoFar, isComplete);
-                    if (!isComplete) {
-                      currentWordIndex++;
-                      // ~200ms per word simulates standard talking speed (~300 WPM)
-                      setTimeout(typeNextWord, 200);
-                    }
-                  }
-                };
-                typeNextWord();
-              }
-            }
-          }
-        } catch (err) {}
-      };
-    } catch (err) {}
-
-    return () => {
-      cancelled = true;
-      if (eventSource) eventSource.close();
-    };
-  }, [isRunning]);
 
   // Clean up speech bubble timers on unmount
   useEffect(() => {

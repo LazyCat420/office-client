@@ -36,3 +36,10 @@ export {
   getActiveAgents,
   getStationForTool,
 } from '../eventMapper';
+
+// ── Prism webhook event → office event mapping ──
+export {
+  mapPrismEvent,
+  isPrismWebhookEvent,
+} from '../prismEventMapper';
+
