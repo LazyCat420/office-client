@@ -100,8 +100,8 @@ class SoundManager {
     osc.stop(now + 0.2);
   }
 
-  playQuack() {
-    if (!this.enabled || !this.context || this.muted) return;
+  playQuack(force = false) {
+    if (!this.enabled || !this.context || (!force && this.muted)) return;
     const now = this.context.currentTime;
     const duration = 0.25;
 

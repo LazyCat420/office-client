@@ -134,17 +134,22 @@ export function Toucan({ glassCupPositions = [], onBreakCup }) {
   });
 
   return (
-    <group 
-      ref={groupRef}
-      onClick={(e) => {
-        e.stopPropagation();
-        soundManager.playQuack();
-        state.current.y += 0.5;
-        state.current.pitch -= 0.5;
-      }}
-      onPointerOver={() => document.body.style.cursor = 'pointer'}
-      onPointerOut={() => document.body.style.cursor = 'auto'}
-    >
+    <group ref={groupRef}>
+      {/* ─── HITBOX ─── */}
+      <mesh 
+        onClick={(e) => {
+          e.stopPropagation();
+          soundManager.playQuack(true);
+          state.current.y += 0.5;
+          state.current.pitch -= 0.5;
+        }}
+        onPointerOver={() => document.body.style.cursor = 'pointer'}
+        onPointerOut={() => document.body.style.cursor = 'auto'}
+      >
+        <sphereGeometry args={[1.5, 16, 16]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+
       {/* ─── BODY ─── */}
       <mesh castShadow>
         <capsuleGeometry args={[0.15, 0.35, 4, 8]} />
