@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { TelemetryProvider } from '@/features/telemetry/telemetryStore';
 import { useTelemetry } from '@/features/telemetry/useTelemetry';
-import { setAudioEnabled as setVoiceAudioEnabled } from '@/components/agent-office/shared';
+import { initializeAudio, disableAudio } from '@/components/agent-office/audioContextManager';
 import { soundManager } from '@/components/3d-office/SoundManager';
 import ErrorBoundary from '@/components/ErrorBoundary';
 
@@ -28,6 +28,7 @@ function OfficeApp() {
   useEffect(() => {
     const initOnClick = () => {
       soundManager.init();
+      initializeAudio();
       document.removeEventListener('click', initOnClick);
     };
     document.addEventListener('click', initOnClick, { once: true });
@@ -37,7 +38,11 @@ function OfficeApp() {
   useEffect(() => {
     localStorage.setItem('office-audioMutedV1', String(isMuted));
     soundManager.setMute(isMuted);
-    setVoiceAudioEnabled(!isMuted);
+    if (!isMuted) {
+      initializeAudio();
+    } else {
+      disableAudio();
+    }
   }, [isMuted]);
 
   // Sidebar tab
