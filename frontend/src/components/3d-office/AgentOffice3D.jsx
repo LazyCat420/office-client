@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { MapControls } from '@react-three/drei';
 import { SceneLayout } from './SceneLayout';
-import { useAgentEvents, AGENT_STATES, cleanAgentId, arriveAgent, createAgent, processEvent } from './routing';
+import { useAgentEvents, AGENT_STATES, cleanAgentId, arriveAgent, createAgent, processEvent, moveAgent } from './routing';
+import { useDragAgent } from './routing/useDragAgent';
 import { AgentDetailsSidebar } from './AgentDetailsSidebar';
 import {
   triggerAgentSpeech,
@@ -245,6 +246,53 @@ export default function AgentOffice3D({ events, status, phase, audioEnabled = fa
       return { ...prev, [agentId]: arriveAgent(agent) };
     });
   }, [setAgents]);
+  // ── Drag system ──
+  const controlsRef = useRef();
+  const [dragState, setDragState] = useState({
+    isDragging: false,
+    draggedAgentId: null,
+    dragPosition: null,
+    nearestRoom: null,
+    dropAllowed: true,
+    dropError: null,
+  });
+
+  // Toast notification for drag results
+  const [toast, setToast] = useState(null);
+  const toastTimerRef = useRef(null);
+  const showToast = useCallback((message, type = 'info') => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ message, type });
+    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
+  }, []);
+
+  // Handle agent drop — persist override and move agent
+  const handleDropAgent = useCallback(async (agentId, fromRoom, toRoom) => {
+    // Immediately move agent visually
+    setAgents(prev => {
+      const agent = prev[agentId];
+      if (!agent) return prev;
+      const moved = moveAgent(agent, toRoom, 'reassigned', `Moving to ${toRoom}`, 'start');
+      return { ...prev, [agentId]: moved };
+    });
+
+    showToast(`${agentId} → ${toRoom.replace('_', ' ')}`, 'success');
+
+    // Persist the override to the local API
+    try {
+      await fetch('/api/agent-overrides', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agentId,
+          room: toRoom,
+          defaultRoom: fromRoom,
+        }),
+      });
+    } catch {
+      // Non-critical — override still works visually
+    }
+  }, [setAgents, showToast]);
 
   return (
     <div className={`agent-office ${!isExpanded ? 'agent-office--collapsed' : ''}`} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -265,16 +313,86 @@ export default function AgentOffice3D({ events, status, phase, audioEnabled = fa
 
       {isExpanded && (
         <div style={{ flex: 1, position: 'relative', background: '#020617' }}>
-          <Canvas shadows camera={{ position: [0, 35, 30], fov: 45, near: 0.1, far: 600 }}>
+          <Canvas
+            shadows
+            camera={{ position: [0, 35, 30], fov: 45, near: 0.1, far: 600 }}
+            onPointerMissed={() => {
+              // Cancel drag if clicking empty space
+              if (dragState.isDragging) {
+                if (controlsRef.current) controlsRef.current.enabled = true;
+                setDragState({
+                  isDragging: false,
+                  draggedAgentId: null,
+                  dragPosition: null,
+                  nearestRoom: null,
+                  dropAllowed: true,
+                  dropError: null,
+                });
+              }
+            }}
+          >
             <color attach="background" args={['#050510']} />
-            <MapControls enableRotate={true} maxPolarAngle={Math.PI / 2.2} minDistance={5} maxDistance={150} />
+            <MapControls
+              ref={controlsRef}
+              enableRotate={true}
+              maxPolarAngle={Math.PI / 2.2}
+              minDistance={5}
+              maxDistance={150}
+            />
+            <DragManager
+              agents={agents}
+              controlsRef={controlsRef}
+              dragState={dragState}
+              setDragState={setDragState}
+              onDropAgent={handleDropAgent}
+            />
             <SceneLayout 
               agents={agents} 
               selectedAgentId={selectedAgentId} 
               onSelectAgent={setSelectedAgentId} 
               onArriveAgent={handleArriveAgent}
+              dragState={dragState}
+              onStartDrag={(agentId, event) => {
+                const agent = agents[agentId];
+                if (!agent) return;
+                const fromRoom = agent.targetStation || agent.station;
+                if (controlsRef.current) controlsRef.current.enabled = false;
+                setDragState({
+                  isDragging: true,
+                  draggedAgentId: agentId,
+                  dragPosition: { x: agent.x || agent.targetX || 0, z: agent.z || agent.targetZ || 0 },
+                  nearestRoom: null,
+                  dropAllowed: true,
+                  dropError: null,
+                });
+              }}
             />
           </Canvas>
+
+          {/* Toast notification */}
+          {toast && (
+            <div style={{
+              position: 'absolute',
+              bottom: 20,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: toast.type === 'success' ? 'rgba(16, 185, 129, 0.9)' : 'rgba(239, 68, 68, 0.9)',
+              color: '#fff',
+              padding: '8px 20px',
+              borderRadius: '8px',
+              fontSize: '13px',
+              fontWeight: '600',
+              fontFamily: 'system-ui, sans-serif',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+              animation: 'agent-bubble-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+              pointerEvents: 'none',
+              zIndex: 100,
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+            }}>
+              {toast.type === 'success' ? '✅' : '❌'} {toast.message}
+            </div>
+          )}
 
           {selectedAgentId && selectedAgentDetails && (
             <AgentDetailsSidebar
@@ -291,4 +409,127 @@ export default function AgentOffice3D({ events, status, phase, audioEnabled = fa
       )}
     </div>
   );
+}
+
+/**
+ * DragManager — Inner component that runs INSIDE the Canvas context.
+ * This allows it to use useThree() hooks for raycasting and camera access.
+ * It listens to pointer events on the canvas to update drag state.
+ */
+function DragManager({ agents, controlsRef, dragState, setDragState, onDropAgent }) {
+  const { camera, raycaster, pointer } = require('@react-three/fiber').useThree();
+  const THREE = require('three');
+
+  const dragPlane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.8), [THREE]);
+  const intersectPoint = useRef(new THREE.Vector3());
+
+  // Import constraint checker and station data
+  const { canMoveAgent } = require('./routing/roomConstraints');
+  const { STATIONS } = require('./routing/stateMachine');
+
+  const DROP_TARGET_ROOMS = useMemo(() => [
+    'lobby', 'research', 'desk', 'debate', 'inbox',
+    'error', 'tool_bench', 'smoke_break',
+  ], []);
+
+  const roomCenters = useMemo(() => {
+    const centers = {};
+    for (const roomId of DROP_TARGET_ROOMS) {
+      const s = STATIONS[roomId];
+      if (s) centers[roomId] = new THREE.Vector3(s.x, 0, s.z);
+    }
+    return centers;
+  }, [DROP_TARGET_ROOMS, STATIONS, THREE]);
+
+  // Listen to pointer move on the gl.domElement
+  useEffect(() => {
+    if (!dragState.isDragging) return;
+
+    const handleMove = () => {
+      raycaster.setFromCamera(pointer, camera);
+      if (raycaster.ray.intersectPlane(dragPlane, intersectPoint.current)) {
+        const pos = {
+          x: intersectPoint.current.x,
+          z: intersectPoint.current.z,
+        };
+
+        // Find nearest room
+        let minDist = Infinity;
+        let nearest = null;
+        const dragVec = new THREE.Vector3(pos.x, 0, pos.z);
+        for (const roomId of DROP_TARGET_ROOMS) {
+          const center = roomCenters[roomId];
+          if (!center) continue;
+          const dist = dragVec.distanceTo(center);
+          if (dist < minDist) {
+            minDist = dist;
+            nearest = roomId;
+          }
+        }
+
+        // Check constraints
+        let allowed = true;
+        let error = null;
+        if (nearest && dragState.draggedAgentId) {
+          const agent = agents[dragState.draggedAgentId];
+          const fromRoom = agent?.targetStation || agent?.station;
+          if (fromRoom) {
+            const result = canMoveAgent(dragState.draggedAgentId, fromRoom, nearest, agents);
+            allowed = result.allowed;
+            error = result.reason || null;
+          }
+        }
+
+        setDragState(prev => ({
+          ...prev,
+          dragPosition: pos,
+          nearestRoom: nearest,
+          dropAllowed: allowed,
+          dropError: error,
+        }));
+      }
+    };
+
+    // Use requestAnimationFrame-throttled mousemove for performance
+    let rafId = null;
+    const throttledMove = () => {
+      if (rafId) return;
+      rafId = requestAnimationFrame(() => {
+        handleMove();
+        rafId = null;
+      });
+    };
+
+    const handleUp = () => {
+      const { nearestRoom, dropAllowed, draggedAgentId } = dragState;
+      const agent = agents[draggedAgentId];
+      const fromRoom = agent?.targetStation || agent?.station;
+
+      if (controlsRef.current) controlsRef.current.enabled = true;
+
+      if (nearestRoom && dropAllowed && nearestRoom !== fromRoom) {
+        onDropAgent(draggedAgentId, fromRoom, nearestRoom);
+      }
+
+      setDragState({
+        isDragging: false,
+        draggedAgentId: null,
+        dragPosition: null,
+        nearestRoom: null,
+        dropAllowed: true,
+        dropError: null,
+      });
+    };
+
+    window.addEventListener('pointermove', throttledMove);
+    window.addEventListener('pointerup', handleUp);
+
+    return () => {
+      window.removeEventListener('pointermove', throttledMove);
+      window.removeEventListener('pointerup', handleUp);
+      if (rafId) cancelAnimationFrame(rafId);
+    };
+  }, [dragState.isDragging, dragState.draggedAgentId, dragState.nearestRoom, dragState.dropAllowed, agents, camera, raycaster, pointer, dragPlane, roomCenters, DROP_TARGET_ROOMS, controlsRef, onDropAgent, setDragState, canMoveAgent, THREE]);
+
+  return null; // This component only provides side effects
 }

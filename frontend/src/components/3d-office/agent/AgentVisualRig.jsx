@@ -10,6 +10,8 @@ export function AgentVisualRig({
   agent,
   isSelected,
   onSelect,
+  onStartDrag,
+  isDragTarget,
   isExiting,
   isError,
   showToolBadge,
@@ -80,9 +82,47 @@ export function AgentVisualRig({
 
   // Change cursor to pointer when hovering over clickable agent
   React.useEffect(() => {
-    document.body.style.cursor = hovered ? 'pointer' : 'auto';
+    document.body.style.cursor = hovered
+      ? (isDragTarget ? 'grabbing' : 'grab')
+      : 'auto';
     return () => { document.body.style.cursor = 'auto'; };
-  }, [hovered]);
+  }, [hovered, isDragTarget]);
+
+  // ── Drag initiation via long-press ──
+  // Short click = select, hold 200ms+ = start drag
+  const pressTimerRef = React.useRef(null);
+  const didDragRef = React.useRef(false);
+
+  const handlePointerDown = React.useCallback((e) => {
+    e.stopPropagation();
+    didDragRef.current = false;
+
+    pressTimerRef.current = setTimeout(() => {
+      didDragRef.current = true;
+      if (onStartDrag) {
+        onStartDrag(agent.id, e);
+      }
+    }, 200); // 200ms threshold for drag vs click
+  }, [agent.id, onStartDrag]);
+
+  const handlePointerUp = React.useCallback((e) => {
+    e.stopPropagation();
+    if (pressTimerRef.current) {
+      clearTimeout(pressTimerRef.current);
+      pressTimerRef.current = null;
+    }
+    // If we didn't start a drag, treat it as a click/select
+    if (!didDragRef.current && onSelect) {
+      onSelect(agent.id);
+    }
+  }, [agent.id, onSelect]);
+
+  // Cleanup timer on unmount
+  React.useEffect(() => {
+    return () => {
+      if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
+    };
+  }, []);
 
   return (
     <group ref={parentRef}>
@@ -218,13 +258,18 @@ export function AgentVisualRig({
             onPointerOut={(e) => {
               setHovered(false);
             }}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (onSelect) onSelect(agent.id);
-            }}
+            onPointerDown={handlePointerDown}
+            onPointerUp={handlePointerUp}
           >
             <capsuleGeometry args={[0.4, 0.6, 4, 16]} />
-            <meshStandardMaterial color={avatarColors.body} roughness={0.6} transparent={isExiting} opacity={isExiting ? 0.3 : 1} />
+            <meshStandardMaterial
+              color={avatarColors.body}
+              roughness={0.6}
+              transparent={isExiting}
+              opacity={isExiting ? 0.3 : 1}
+              emissive={isDragTarget ? avatarColors.body : '#000000'}
+              emissiveIntensity={isDragTarget ? 0.4 : 0}
+            />
           </mesh>
 
           {/* Eyes/Visor */}

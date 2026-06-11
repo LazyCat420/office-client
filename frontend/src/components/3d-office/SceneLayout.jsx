@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, useMemo } from 'react';
 import { Environment } from '@react-three/drei';
 import { Physics } from '@react-three/rapier';
 import { Stations } from './Stations';
@@ -7,6 +7,7 @@ import { SkyscraperShell, CloudLayer, SkyDome } from './environment';
 import { ToucanScene } from './ToucanScene';
 import { Cat } from './primitives/Cat';
 import { PaperManager } from './primitives/PaperManager';
+import { RoomDropZones } from './RoomDropZones';
 
 /**
  * SceneLayout — Orchestrates the full 100th floor trading office scene.
@@ -18,12 +19,41 @@ import { PaperManager } from './primitives/PaperManager';
  * 4. Stations — room layout, furniture, trading pit
  * 5. ToucanScene — flying toucan + breakable glass cups
  * 6. Agents — dynamic characters
+ * 7. RoomDropZones — visible only during agent drag operations
  * 
  * NOTE: The <Environment> component is CRITICAL — it provides the cubemap
  * that metallic materials reflect. Without it, any material with metalness > 0
  * reflects pure black and the entire room goes dark.
  */
-export function SceneLayout({ agents, selectedAgentId, onSelectAgent, onArriveAgent }) {
+export function SceneLayout({
+  agents,
+  selectedAgentId,
+  onSelectAgent,
+  onArriveAgent,
+  // Drag system props
+  dragState,
+  onStartDrag,
+}) {
+  // When dragging, override the dragged agent's position for visual feedback
+  const agentsWithDrag = useMemo(() => {
+    if (!dragState?.isDragging || !dragState?.draggedAgentId || !dragState?.dragPosition) {
+      return agents;
+    }
+    const dragged = agents[dragState.draggedAgentId];
+    if (!dragged) return agents;
+
+    return {
+      ...agents,
+      [dragState.draggedAgentId]: {
+        ...dragged,
+        // Override visual position to follow cursor
+        _dragOverride: true,
+        _dragX: dragState.dragPosition.x,
+        _dragZ: dragState.dragPosition.z,
+      },
+    };
+  }, [agents, dragState]);
+
   return (
     <>
       {/* Environment map — gives metallic surfaces something to reflect.
@@ -72,7 +102,7 @@ export function SceneLayout({ agents, selectedAgentId, onSelectAgent, onArriveAg
 
           {/* ═══ Interior ═══ */}
           <Stations />
-          <PaperManager agents={agents} />
+          <PaperManager agents={agentsWithDrag} />
 
           {/* ═══ Toucan + Breakable Cups ═══ */}
           <ToucanScene />
@@ -80,14 +110,24 @@ export function SceneLayout({ agents, selectedAgentId, onSelectAgent, onArriveAg
           {/* ═══ Office Cat ═══ */}
           <Cat />
 
+          {/* ═══ Drop Zone Indicators (visible during drag) ═══ */}
+          <RoomDropZones
+            isDragging={dragState?.isDragging}
+            nearestRoom={dragState?.nearestRoom}
+            dropAllowed={dragState?.dropAllowed}
+            dropError={dragState?.dropError}
+          />
+
           {/* ═══ Dynamic Agents ═══ */}
-          {Object.values(agents).map((agent) => (
+          {Object.values(agentsWithDrag).map((agent) => (
             <Agent
               key={agent.id}
               agent={agent}
               isSelected={selectedAgentId === agent.id}
               onSelect={onSelectAgent}
               onArrive={onArriveAgent}
+              onStartDrag={onStartDrag}
+              isDragTarget={dragState?.draggedAgentId === agent.id}
             />
           ))}
         </Physics>

@@ -16,7 +16,7 @@ import { soundManager } from '../SoundManager';
 import { AgentVisualRig } from './AgentVisualRig';
 import { useAnimationLoop } from './useAnimationLoop';
 
-export function Agent({ agent, isSelected, onSelect, onArrive }) {
+export function Agent({ agent, isSelected, onSelect, onArrive, onStartDrag, isDragTarget }) {
   const isWorking = agent.state === AGENT_STATES.WORKING;
   const isWalking = agent.state === AGENT_STATES.WALKING;
   const isError = agent.state === AGENT_STATES.ERROR;
@@ -33,7 +33,11 @@ export function Agent({ agent, isSelected, onSelect, onArrive }) {
   useEffect(() => { setWpIndex(0); }, [wpKey]);
 
   // Determine current spring target (next waypoint or final destination)
+  // When being dragged, override position to follow cursor with Y lift
   const currentTarget = useMemo(() => {
+    if (agent._dragOverride) {
+      return [agent._dragX, 0.5, agent._dragZ];
+    }
     if (isFired) {
       // Jump and fall parabolic trajectory is handled by the spring config,
       // we just give it a far off-screen target and rely on the visual rig
@@ -52,9 +56,12 @@ export function Agent({ agent, isSelected, onSelect, onArrive }) {
       0,
       agent.targetZ !== undefined ? agent.targetZ : (agent.z || 0),
     ];
-  }, [isFired, isWalking, waypoints, wpIndex, agent.targetX, agent.targetZ, agent.x, agent.z]);
+  }, [isFired, isWalking, waypoints, wpIndex, agent.targetX, agent.targetZ, agent.x, agent.z, agent._dragOverride, agent._dragX, agent._dragZ]);
 
   const springConfig = useMemo(() => {
+    if (agent._dragOverride) {
+      return { mass: 0.5, tension: 300, friction: 20 }; // Snappy follow during drag
+    }
     if (isFired) {
       return { mass: 2, tension: 15.0, friction: 5.0 }; // Faster drop
     }
@@ -62,7 +69,7 @@ export function Agent({ agent, isSelected, onSelect, onArrive }) {
       return { mass: 1, tension: 35.0, friction: 15.0 };
     }
     return { mass: 1, tension: 6.0, friction: 8.0 };
-  }, [isWalking, isFired]);
+  }, [isWalking, isFired, agent._dragOverride]);
 
   // ── Spring: smooth position interpolation ──
   const { position } = useSpring({
@@ -177,6 +184,8 @@ export function Agent({ agent, isSelected, onSelect, onArrive }) {
       agent={agent}
       isSelected={isSelected}
       onSelect={onSelect}
+      onStartDrag={onStartDrag}
+      isDragTarget={isDragTarget}
       isExiting={isExiting}
       isError={isError}
       showToolBadge={showToolBadge}

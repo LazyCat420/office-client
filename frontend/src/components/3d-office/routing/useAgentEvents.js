@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { processEvent, arriveAgent, moveAgent, releaseSlot, resetOccupancy, AGENT_STATES, clearBubble } from './stateMachine';
 import { mapEvent, mapPrismEvent, isPrismWebhookEvent } from '../../agent-office/shared';
 import { classifyToolStation } from './toolStationMap';
+import demandTracker from './demandTracker';
 
 const WALK_DURATION_MS = 15000;
 const BUBBLE_TIMEOUT_MS = 4000;
@@ -108,6 +109,7 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
         processedCountRef.current = 0;
         resetOccupancy();
         taskCountRef.current = {};
+        demandTracker.reset();
         // Clear all walk/exit timers
         for (const timer of Object.values(walkTimersRef.current)) clearTimeout(timer);
         for (const timer of Object.values(exitTimersRef.current)) clearTimeout(timer);
@@ -175,6 +177,10 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
         for (const oe of officeEvents) {
           updated = processEvent(updated, oe);
           applyTimers(oe.agentId, updated[oe.agentId]);
+          // Feed demand tracker for smart auto-revert
+          if (oe.station) {
+            demandTracker.recordEvent(oe.station);
+          }
         }
       }
 
@@ -553,6 +559,100 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
       resetOccupancy();
     }
   }, [isRunning]);
+
+  // ── Smart Auto-Revert: check overridden agents every 30s ──
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      // Fetch current overrides
+      let overrides = {};
+      try {
+        const res = await fetch('/api/agent-overrides');
+        if (res.ok) {
+          const data = await res.json();
+          overrides = data.overrides || {};
+        }
+      } catch {
+        return; // Can't check without overrides
+      }
+
+      const overrideEntries = Object.entries(overrides);
+      if (overrideEntries.length === 0) return;
+
+      for (const [agentId, override] of overrideEntries) {
+        const currentDemand = demandTracker.getDemand(override.room);
+        const homeDemand = override.defaultRoom
+          ? demandTracker.getDemand(override.defaultRoom)
+          : 0;
+
+        // Auto-revert if: override room has 0 demand AND home room has demand
+        if (currentDemand === 0 && homeDemand > 0 && override.defaultRoom) {
+          // Remove the override
+          try {
+            await fetch('/api/agent-overrides', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ agentId, _delete: true }),
+            });
+          } catch {
+            continue;
+          }
+
+          // Move agent back to default room
+          setAgents(prev => {
+            const agent = prev[agentId];
+            if (!agent) return prev;
+            const moved = moveAgent(
+              agent,
+              override.defaultRoom,
+              'auto_revert',
+              `Heading back — no work in ${override.room.replace('_', ' ')}`,
+              'start'
+            );
+            return { ...prev, [agentId]: moved };
+          });
+        }
+      }
+    }, 30_000); // Check every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [setAgents]);
+
+  // ── Load persisted overrides on mount ──
+  useEffect(() => {
+    async function loadOverrides() {
+      try {
+        const res = await fetch('/api/agent-overrides');
+        if (!res.ok) return;
+        const data = await res.json();
+        const overrides = data.overrides || {};
+
+        if (Object.keys(overrides).length === 0) return;
+
+        setAgents(prev => {
+          let updated = { ...prev };
+          for (const [agentId, override] of Object.entries(overrides)) {
+            const agent = updated[agentId];
+            if (agent && agent.station !== override.room) {
+              updated[agentId] = moveAgent(
+                agent,
+                override.room,
+                'override_loaded',
+                `Resuming override at ${override.room.replace('_', ' ')}`,
+                'start'
+              );
+            }
+          }
+          return updated;
+        });
+      } catch {
+        // Non-critical
+      }
+    }
+
+    // Delay slightly to let agents seed first
+    const timer = setTimeout(loadOverrides, 2000);
+    return () => clearTimeout(timer);
+  }, [setAgents]);
 
   return { agents, setAgents, isRunning };
 }
