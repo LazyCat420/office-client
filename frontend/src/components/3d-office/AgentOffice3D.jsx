@@ -8,9 +8,9 @@ import { useAgentEvents, AGENT_STATES, cleanAgentId, arriveAgent, createAgent, p
 import { AgentDetailsSidebar } from './AgentDetailsSidebar';
 import {
   triggerAgentSpeech,
-  setAudioEnabled as setVoiceAudioEnabled,
   getHomeStation,
 } from '../agent-office/shared';
+import { initializeAudio, disableAudio } from '../agent-office/audioContextManager';
 import '../agent-office/agentOffice.css';
 
 
@@ -23,9 +23,11 @@ export default function AgentOffice3D({ events, status, phase, audioEnabled = fa
   const audioEnabledRef = useRef(audioEnabled);
   useEffect(() => {
     audioEnabledRef.current = audioEnabled;
-    // Sync the module-level audioEnabled flag and AudioContext lifecycle
-    // so that triggerAgentSpeech() knows whether it can play audio.
-    setVoiceAudioEnabled(audioEnabled);
+    if (audioEnabled) {
+      initializeAudio();
+    } else {
+      disableAudio();
+    }
   }, [audioEnabled]);
 
   // Selection states

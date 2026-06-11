@@ -18,16 +18,23 @@ export {
   NON_PIPELINE_AGENTS,
 } from '../agentUtils';
 
-// ── Voice synthesis ──
+// ── Voice Constants ──
 export {
-  triggerAgentSpeech,
-  setAudioEnabled,
-  isAudioEnabled,
   resolveArchetype,
   getFallbackQuote,
+} from '../voiceConstants';
+
+// ── Audio Context Management ──
+export {
+  isAudioEnabled,
+} from '../audioContextManager';
+
+// ── TTS Client ──
+export {
+  triggerAgentSpeech,
   computeVolume,
   getVoiceForAgent,
-} from '../agentVoice';
+} from '../ttsClient';
 
 // ── Backend event → office event mapping ──
 export {

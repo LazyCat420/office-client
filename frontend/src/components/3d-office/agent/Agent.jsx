@@ -22,6 +22,7 @@ export function Agent({ agent, isSelected, onSelect, onArrive }) {
   const isError = agent.state === AGENT_STATES.ERROR;
   const isSpawning = agent.state === AGENT_STATES.SPAWNING;
   const isExiting = agent.state === AGENT_STATES.EXITING;
+  const isFired = agent.state === AGENT_STATES.FIRED;
 
   // ── Waypoint tracking ──
   const waypoints = useMemo(() => agent.waypoints || [], [agent.waypoints]);
@@ -33,6 +34,15 @@ export function Agent({ agent, isSelected, onSelect, onArrive }) {
 
   // Determine current spring target (next waypoint or final destination)
   const currentTarget = useMemo(() => {
+    if (isFired) {
+      // Jump and fall parabolic trajectory is handled by the spring config,
+      // we just give it a far off-screen target and rely on the visual rig
+      return [
+        agent.targetX !== undefined ? agent.targetX : (agent.x || 0),
+        -50,
+        (agent.targetZ !== undefined ? agent.targetZ : (agent.z || 0)) - 5,
+      ];
+    }
     if (isWalking && waypoints.length > 0 && wpIndex < waypoints.length) {
       const wp = waypoints[wpIndex];
       return [wp[0], 0, wp[1]];
@@ -42,14 +52,17 @@ export function Agent({ agent, isSelected, onSelect, onArrive }) {
       0,
       agent.targetZ !== undefined ? agent.targetZ : (agent.z || 0),
     ];
-  }, [isWalking, waypoints, wpIndex, agent.targetX, agent.targetZ, agent.x, agent.z]);
+  }, [isFired, isWalking, waypoints, wpIndex, agent.targetX, agent.targetZ, agent.x, agent.z]);
 
   const springConfig = useMemo(() => {
+    if (isFired) {
+      return { mass: 2, tension: 15.0, friction: 5.0 }; // Faster drop
+    }
     if (isWalking) {
       return { mass: 1, tension: 35.0, friction: 15.0 };
     }
     return { mass: 1, tension: 6.0, friction: 8.0 };
-  }, [isWalking]);
+  }, [isWalking, isFired]);
 
   // ── Spring: smooth position interpolation ──
   const { position } = useSpring({
@@ -151,6 +164,13 @@ export function Agent({ agent, isSelected, onSelect, onArrive }) {
     if (elapsed < 20) return 0.4;  // moderate
     return 0.2;                    // been a while, calming down
   }, [agent.station, agent.lastActionTime, isWorking, isWalking]);
+
+  useEffect(() => {
+    if (isFired) {
+      soundManager.playPop(); // Or a custom breaking sound if we have one
+      window.dispatchEvent(new CustomEvent('break-window'));
+    }
+  }, [isFired]);
 
   return (
     <AgentVisualRig
