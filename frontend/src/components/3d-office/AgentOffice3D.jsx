@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { MapControls } from '@react-three/drei';
 import { SceneLayout } from './SceneLayout';
-import { useAgentEvents, AGENT_STATES, cleanAgentId, arriveAgent, createAgent } from './routing';
+import { useAgentEvents, AGENT_STATES, cleanAgentId, arriveAgent, createAgent, processEvent } from './routing';
 import { AgentDetailsSidebar } from './AgentDetailsSidebar';
 import {
   triggerAgentSpeech,
@@ -90,14 +90,20 @@ export default function AgentOffice3D({ events, status, phase, audioEnabled = fa
       }
     }
     if (!agent) {
-      // Create agent at their home station instead of lobby so they appear
-      // in the correct room even if the pipeline event that placed them
-      // there was already garbage-collected.
-      agent = createAgent(cleanId, Date.now());
-      const home = getHomeStation(cleanId, true);
-      if (home) {
-        agent = { ...agent, station: home, targetStation: null };
-      }
+      // Create agent at their home station via processEvent so they get
+      // a proper WORKING state, slot position, and animation variant.
+      // This prevents the GC from killing them before TTS finishes.
+      const home = getHomeStation(cleanId, true) || 'desk';
+      const seeded = processEvent({}, {
+        type: `${home}_start`,
+        agentId: cleanId,
+        station: home,
+        tool: 'voice',
+        label: `${cleanId} speaking`,
+        status: 'start',
+        ts: Date.now(),
+      });
+      agent = seeded[cleanId];
     }
 
     const targetId = agent.id || cleanId;

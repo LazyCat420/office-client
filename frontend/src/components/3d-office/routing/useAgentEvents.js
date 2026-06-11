@@ -90,6 +90,16 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
     };
   }, []);
 
+  // ── Known pipeline agent roles to pre-seed at their home stations ──
+  const PIPELINE_AGENTS = [
+    'DATA_JANITOR',
+    'QUANT_RESEARCH_AGENT',
+    'PRE_TRADE_RISK',
+    'BULLISH_DEBATER',
+    'BEARISH_DEBATER',
+    'PORTFOLIO_ALLOCATOR',
+  ];
+
   // ── Reset on new cycle (matches 2D AgentOffice pattern) ──
   useEffect(() => {
     if (status === 'idle' || status === 'starting') {
@@ -107,6 +117,33 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
         bubbleTimersRef.current = {};
       }
     }
+
+    // Pre-seed known pipeline agents when a cycle starts so they're
+    // visible in the 3D office before any events arrive for them.
+    const wasIdle = ['idle', 'done', 'error', 'stopped', 'interrupted'].includes(prevStatusRef2.current);
+    const isActive = status && !['idle', 'done', 'error', 'stopped', 'interrupted'].includes(status);
+    if (wasIdle && isActive) {
+      setAgents(prev => {
+        let updated = { ...prev };
+        for (const agentId of PIPELINE_AGENTS) {
+          if (updated[agentId]) continue; // Already exists
+          const home = getHomeStation(agentId, true);
+          if (!home) continue;
+          const agent = processEvent(updated, {
+            type: `${home}_start`,
+            agentId,
+            station: home,
+            tool: null,
+            label: `${agentId} standing by`,
+            status: 'start',
+            ts: Date.now(),
+          });
+          updated = agent;
+        }
+        return updated;
+      });
+    }
+
     prevStatusRef2.current = status;
   }, [status]);
 
@@ -161,6 +198,11 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
         // Normal real-time GC: remove agents that have been idle too long
         for (const [id, agent] of Object.entries(updated)) {
           if (id === 'system') continue;
+
+          // Skip agents with dedicated home stations — they persist for
+          // the entire cycle and are managed by the interval-based GC instead.
+          if (getHomeStation(id, true)) continue;
+
           const elapsed = now - (agent.lastActionTime || 0);
           let expireMs = agent.state === AGENT_STATES.WORKING ? 120000 : 15000;
           
