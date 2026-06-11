@@ -9,6 +9,11 @@
 let audioEnabled = false;
 let audioCtx = null;
 
+// Global speech queue
+const speechQueue = [];
+let isProcessingQueue = false;
+let currentReject = null;
+
 /**
  * Preload browser voices so they are ready when the first speech event arrives.
  * Chrome lazy-loads voices — calling getVoices() early ensures the list is populated.
@@ -212,9 +217,17 @@ export function getVoiceForAgent(agent, archetype) {
 export function setAudioEnabled(enabled) {
   audioEnabled = enabled;
   if (!enabled) {
+    speechQueue.length = 0;
+    isProcessingQueue = false;
+    if (currentReject) {
+      try {
+        currentReject();
+      } catch (e) {}
+      currentReject = null;
+    }
     if (typeof window !== 'undefined' && window.speechSynthesis) window.speechSynthesis.cancel();
     if (audioCtx) {
-      audioCtx.close();
+      audioCtx.close().catch(() => {});
       audioCtx = null;
     }
   } else {
@@ -237,7 +250,7 @@ export function isAudioEnabled() {
   return audioEnabled;
 }
 
-export async function triggerAgentSpeech(quote, agent, sceneEl, onProgress) {
+export async function executeSpeech({ quote, agent, sceneEl, onProgress }) {
   const archetype = resolveArchetype(agent);
   const textToSpeak = quote || getFallbackQuote(archetype);
   const cleanText = textToSpeak ? textToSpeak.replace(/[*_`~#]/g, '') : '';
@@ -273,30 +286,36 @@ export async function triggerAgentSpeech(quote, agent, sceneEl, onProgress) {
     const audioArrayBuffer = await ttsResponse.arrayBuffer();
     const decodedAudioBuffer = await audioCtx.decodeAudioData(audioArrayBuffer);
 
-    const bufferSource = audioCtx.createBufferSource();
-    bufferSource.buffer = decodedAudioBuffer;
-    
-    // Apply custom rate
-    const customPlaybackRate = agent?.voice_rate ?? agent?.voiceRate ?? (CHARACTERISTICS[archetype] || CHARACTERISTICS.RESEARCH).rate;
-    bufferSource.playbackRate.value = customPlaybackRate;
-    
-    // Note: Pitch shifting requires a BiquadFilter or complex DSP, 
-    // we rely on the Piper voice model itself for the primary voice characteristics.
-    
-    const gainNode = audioCtx.createGain();
-    gainNode.gain.value = volume;
+    return new Promise((resolve) => {
+      const bufferSource = audioCtx.createBufferSource();
+      bufferSource.buffer = decodedAudioBuffer;
+      
+      const customPlaybackRate = agent?.voice_rate ?? agent?.voiceRate ?? (CHARACTERISTICS[archetype] || CHARACTERISTICS.RESEARCH).rate;
+      bufferSource.playbackRate.value = customPlaybackRate;
+      
+      const gainNode = audioCtx.createGain();
+      gainNode.gain.value = volume;
 
-    bufferSource.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
+      bufferSource.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
 
-    bufferSource.onended = () => {
-      if (onProgress) onProgress(cleanText, true);
-    };
+      currentReject = () => {
+        try {
+          bufferSource.stop();
+        } catch (e) {}
+        resolve();
+      };
 
-    if (onProgress) onProgress(cleanText, false);
-    console.log(`[PiperTTS] Speaking (${requestedAccent}): "${textToSpeak}" at volume ${volume.toFixed(2)}`);
-    bufferSource.start(0);
-    return;
+      bufferSource.onended = () => {
+        currentReject = null;
+        if (onProgress) onProgress(cleanText, true);
+        resolve();
+      };
+
+      if (onProgress) onProgress(cleanText, false);
+      console.log(`[PiperTTS] Speaking (${requestedAccent}): "${textToSpeak}" at volume ${volume.toFixed(2)}`);
+      bufferSource.start(0);
+    });
 
   } catch (piperError) {
     console.warn("[PiperTTS] Backend synthesis failed, falling back to local Web Speech API:", piperError);
@@ -308,39 +327,75 @@ export async function triggerAgentSpeech(quote, agent, sceneEl, onProgress) {
     return;
   }
 
-  const utterance = new SpeechSynthesisUtterance(cleanText);
+  return new Promise((resolve) => {
+    const utterance = new SpeechSynthesisUtterance(cleanText);
 
-  if (onProgress) {
-    utterance.onboundary = (event) => {
-      if (event.name === 'word') {
-        let nextSpace = cleanText.indexOf(' ', event.charIndex);
-        if (nextSpace === -1) nextSpace = cleanText.length;
-        onProgress(cleanText.substring(0, nextSpace), false);
-      }
+    currentReject = () => {
+      try {
+        window.speechSynthesis.cancel();
+      } catch (e) {}
+      resolve();
     };
+
+    if (onProgress) {
+      utterance.onboundary = (event) => {
+        if (event.name === 'word') {
+          let nextSpace = cleanText.indexOf(' ', event.charIndex);
+          if (nextSpace === -1) nextSpace = cleanText.length;
+          onProgress(cleanText.substring(0, nextSpace), false);
+        }
+      };
+    }
+    
     utterance.onend = () => {
-      onProgress(cleanText, true);
+      currentReject = null;
+      if (onProgress) onProgress(cleanText, true);
+      resolve();
     };
     utterance.onerror = () => {
-      onProgress(cleanText, true);
+      currentReject = null;
+      if (onProgress) onProgress(cleanText, true);
+      resolve();
     };
+
+    const char = CHARACTERISTICS[archetype] || CHARACTERISTICS.RESEARCH;
+    
+    const customPitch = agent?.voice_pitch ?? agent?.voicePitch;
+    const customRate = agent?.voice_rate ?? agent?.voiceRate;
+    
+    utterance.pitch = (customPitch !== undefined && customPitch !== null) ? customPitch : char.pitch;
+    utterance.rate = (customRate !== undefined && customRate !== null) ? customRate : char.rate;
+
+    const voice = getVoiceForAgent(agent, archetype);
+    if (voice) {
+      utterance.voice = voice;
+    }
+
+    utterance.volume = volume;
+
+    console.log(`[AgentVoice Fallback] Speaking (${archetype}): "${textToSpeak}"`);
+    window.speechSynthesis.speak(utterance);
+  });
+}
+
+async function processQueue() {
+  if (isProcessingQueue || speechQueue.length === 0) return;
+  isProcessingQueue = true;
+
+  const item = speechQueue[0];
+  try {
+    await executeSpeech(item);
+  } catch (err) {
+    console.error("[AgentVoice Queue] Error during speech execution:", err);
+  } finally {
+    speechQueue.shift();
+    isProcessingQueue = false;
+    // Brief pause between speakers to let animation catch up
+    setTimeout(processQueue, 150);
   }
+}
 
-  const char = CHARACTERISTICS[archetype] || CHARACTERISTICS.RESEARCH;
-  
-  const customPitch = agent?.voice_pitch ?? agent?.voicePitch;
-  const customRate = agent?.voice_rate ?? agent?.voiceRate;
-  
-  utterance.pitch = (customPitch !== undefined && customPitch !== null) ? customPitch : char.pitch;
-  utterance.rate = (customRate !== undefined && customRate !== null) ? customRate : char.rate;
-
-  const voice = getVoiceForAgent(agent, archetype);
-  if (voice) {
-    utterance.voice = voice;
-  }
-
-  utterance.volume = volume;
-
-  console.log(`[AgentVoice Fallback] Speaking (${archetype}): "${textToSpeak}"`);
-  window.speechSynthesis.speak(utterance);
+export function triggerAgentSpeech(quote, agent, sceneEl, onProgress) {
+  speechQueue.push({ quote, agent, sceneEl, onProgress });
+  processQueue();
 }
