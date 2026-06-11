@@ -100,6 +100,39 @@ class SoundManager {
     osc.stop(now + 0.2);
   }
 
+  playQuack() {
+    if (!this.enabled || !this.context || this.muted) return;
+    const now = this.context.currentTime;
+    const duration = 0.25;
+
+    const osc = this.context.createOscillator();
+    osc.type = 'sawtooth';
+    
+    // Frequency envelope (pitch drops quickly)
+    osc.frequency.setValueAtTime(400, now);
+    osc.frequency.exponentialRampToValueAtTime(100, now + duration);
+
+    // Bandpass filter to make it sound "nasal"
+    const filter = this.context.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(800, now);
+    filter.Q.value = 2;
+    filter.frequency.exponentialRampToValueAtTime(300, now + duration);
+
+    // Amplitude envelope
+    const gain = this.context.createGain();
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.2, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.context.destination);
+
+    osc.start(now);
+    osc.stop(now + duration);
+  }
+
   playStep() {
     if (!this.enabled || !this.context || this.muted) return;
     const osc = this.context.createOscillator();
