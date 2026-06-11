@@ -63,11 +63,23 @@ export default function AgentOffice3D({ events, status, phase, audioEnabled = fa
   // Voice event handler — receives agent_voice events from the unified Prism SSE
   // in useAgentEvents (eliminating the need for a duplicate SSE connection).
   const agentsRef = useRef({});
+  // Dedup set — ring buffer replays recent events on SSE reconnect; avoid double-speaking.
+  const seenVoiceQuotesRef = useRef(new Set());
   const handleVoiceEvent = React.useCallback((event) => {
     if (event.type !== 'agent_voice') return;
 
     const cleanId = cleanAgentId(event.agentId);
     if (!cleanId) return; // Skip non-pipeline chat agents
+
+    // Dedup: skip if we've already spoken this exact quote for this agent
+    const dedupeKey = `${cleanId}:${event.quote}`;
+    if (seenVoiceQuotesRef.current.has(dedupeKey)) return;
+    seenVoiceQuotesRef.current.add(dedupeKey);
+    // Cap the dedup set to prevent unbounded growth
+    if (seenVoiceQuotesRef.current.size > 100) {
+      const first = seenVoiceQuotesRef.current.values().next().value;
+      seenVoiceQuotesRef.current.delete(first);
+    }
 
     let agent = agentsRef.current[cleanId];
     if (!agent) {
@@ -78,7 +90,14 @@ export default function AgentOffice3D({ events, status, phase, audioEnabled = fa
       }
     }
     if (!agent) {
+      // Create agent at their home station instead of lobby so they appear
+      // in the correct room even if the pipeline event that placed them
+      // there was already garbage-collected.
       agent = createAgent(cleanId, Date.now());
+      const home = getHomeStation(cleanId, true);
+      if (home) {
+        agent = { ...agent, station: home, targetStation: null };
+      }
     }
 
     const targetId = agent.id || cleanId;
