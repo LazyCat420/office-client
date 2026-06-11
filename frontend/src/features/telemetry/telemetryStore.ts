@@ -57,7 +57,7 @@ export function TelemetryProvider({ children }: { children: React.ReactNode }) {
   const loadCycleStatus = useCallback(async (summaryOnly = false) => {
     try {
       const s = await api.getCycleStatus(summaryOnly);
-      if (s && !s.error) {
+      if (s && s.status !== 'Backend unreachable') {
         updateCycleState(s);
       }
       return s;
@@ -69,6 +69,13 @@ export function TelemetryProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Initial fetch to paint immediately
     loadCycleStatus(false);
+
+    // Heartbeat: poll every 10s as fallback for missed SSE events.
+    // This catches cycle-end transitions the SSE stream might miss
+    // due to reconnect gaps or JSON dedup.
+    const heartbeatInterval = setInterval(() => {
+      loadCycleStatus(true); // summary_only=true to minimize bandwidth
+    }, 10_000);
 
     let isSubscribed = true;
     let es: EventSource | null = null;
@@ -83,7 +90,7 @@ export function TelemetryProvider({ children }: { children: React.ReactNode }) {
         if (!isSubscribed) return;
         try {
           const s = JSON.parse(event.data);
-          if (s && !s.error && s.status !== 'Backend unreachable') {
+          if (s && s.status !== 'Backend unreachable') {
             updateCycleState(s);
           }
         } catch (err) {
@@ -106,6 +113,7 @@ export function TelemetryProvider({ children }: { children: React.ReactNode }) {
       isSubscribed = false;
       if (es) es.close();
       if (reconnectTimer) clearTimeout(reconnectTimer);
+      clearInterval(heartbeatInterval);
     };
   }, [loadCycleStatus, updateCycleState]);
 
