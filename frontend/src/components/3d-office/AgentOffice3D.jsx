@@ -1,11 +1,13 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useThree } from '@react-three/fiber';
+import * as THREE from 'three';
 import { MapControls } from '@react-three/drei';
 import { SceneLayout } from './SceneLayout';
 import { useAgentEvents, AGENT_STATES, cleanAgentId, arriveAgent, createAgent, processEvent, moveAgent } from './routing';
-import { useDragAgent } from './routing/useDragAgent';
+import { canMoveAgent } from './routing/roomConstraints';
+import { STATIONS } from './routing/stateMachine';
 import { AgentDetailsSidebar } from './AgentDetailsSidebar';
 import {
   triggerAgentSpeech,
@@ -417,15 +419,10 @@ export default function AgentOffice3D({ events, status, phase, audioEnabled = fa
  * It listens to pointer events on the canvas to update drag state.
  */
 function DragManager({ agents, controlsRef, dragState, setDragState, onDropAgent }) {
-  const { camera, raycaster, pointer } = require('@react-three/fiber').useThree();
-  const THREE = require('three');
+  const { camera, raycaster, pointer } = useThree();
 
-  const dragPlane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.8), [THREE]);
+  const dragPlane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.8), []);
   const intersectPoint = useRef(new THREE.Vector3());
-
-  // Import constraint checker and station data
-  const { canMoveAgent } = require('./routing/roomConstraints');
-  const { STATIONS } = require('./routing/stateMachine');
 
   const DROP_TARGET_ROOMS = useMemo(() => [
     'lobby', 'research', 'desk', 'debate', 'inbox',
@@ -439,7 +436,7 @@ function DragManager({ agents, controlsRef, dragState, setDragState, onDropAgent
       if (s) centers[roomId] = new THREE.Vector3(s.x, 0, s.z);
     }
     return centers;
-  }, [DROP_TARGET_ROOMS, STATIONS, THREE]);
+  }, [DROP_TARGET_ROOMS]);
 
   // Listen to pointer move on the gl.domElement
   useEffect(() => {
@@ -529,7 +526,7 @@ function DragManager({ agents, controlsRef, dragState, setDragState, onDropAgent
       window.removeEventListener('pointerup', handleUp);
       if (rafId) cancelAnimationFrame(rafId);
     };
-  }, [dragState.isDragging, dragState.draggedAgentId, dragState.nearestRoom, dragState.dropAllowed, agents, camera, raycaster, pointer, dragPlane, roomCenters, DROP_TARGET_ROOMS, controlsRef, onDropAgent, setDragState, canMoveAgent, THREE]);
+  }, [dragState.isDragging, dragState.draggedAgentId, dragState.nearestRoom, dragState.dropAllowed, agents, camera, raycaster, pointer, dragPlane, roomCenters, DROP_TARGET_ROOMS, controlsRef, onDropAgent, setDragState]);
 
   return null; // This component only provides side effects
 }

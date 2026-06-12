@@ -463,8 +463,8 @@ export function arriveAgent(agent) {
     state: nextState,
     station: arrivedStation,
     animVariant,
-    x: agent.targetX,
-    z: agent.targetZ,
+    x: pos.x,
+    z: pos.z,
     facing: pos.facing,
   };
 }

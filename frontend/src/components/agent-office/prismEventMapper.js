@@ -91,10 +91,30 @@ export function mapPrismEvent(event, classifyToolStationFn) {
 
     // ── LLM generation completed ──
     case 'generation.completed': {
-      // generation.completed doesn't carry agent info, so we can't
-      // reliably route it. Skip — the tool_call.completed events
-      // provide the done transitions we need.
-      return [];
+      // Try to resolve agent — newer Prism builds include agent info.
+      // If no agent can be resolved, skip (the tool_call.completed events
+      // will provide the done transitions instead).
+      const agentId = resolvePrismAgentId(data);
+      if (!agentId) return [];
+
+      const station = getStationForAgentOrTool(agentId, 'LLM thinking', classifyToolStationFn, true);
+      return [{
+        type: `${station}_progress`,
+        agentId,
+        station,
+        tool: 'LLM thinking',
+        toolEmoji: '🧠',
+        label: `${agentId} finished thinking`,
+        status: 'progress',
+        ts,
+        meta: {
+          source: 'prism',
+          eventType: event.eventType,
+          model: data.model,
+          provider: data.provider,
+          conversationId: data.conversationId,
+        },
+      }];
     }
 
     // ── Tool call started ──
