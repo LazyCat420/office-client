@@ -24,8 +24,13 @@ export default function AgentOffice3D({ events, status, phase, audioEnabled = fa
 
   // Track audio enabled state from prop via ref for SSE handler closure
   const audioEnabledRef = useRef(audioEnabled);
+  const isAudioInitialMount = useRef(true);
   useEffect(() => {
     audioEnabledRef.current = audioEnabled;
+    if (isAudioInitialMount.current) {
+      isAudioInitialMount.current = false;
+      return;
+    }
     if (audioEnabled) {
       initializeAudio();
     } else {

@@ -15,18 +15,33 @@ function OfficeApp() {
   const cycleStatus = currentCycle;
 
   // Audio mute
-  const [isMuted, setIsMuted] = useState(() => {
+  const [isMuted, setIsMuted] = useState(true);
+  const isMutedRef = useRef(isMuted);
+  const isInitialMount = useRef(true);
+  const hasInteractedRef = useRef(false);
+
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
+
+  // Sync mute state on mount (restoring localStorage value)
+  useEffect(() => {
     try {
       const stored = localStorage.getItem('office-audioMutedV1');
-      return stored !== null ? stored === 'true' : true;
-    } catch { return true; }
-  });
+      if (stored !== null) {
+        setIsMuted(stored === 'true');
+      }
+    } catch (e) {}
+  }, []);
 
   // Initialize SoundManager on first user interaction (browsers require user gesture)
   useEffect(() => {
     const initOnClick = () => {
+      hasInteractedRef.current = true;
       soundManager.init();
-      initializeAudio();
+      if (!isMutedRef.current) {
+        initializeAudio();
+      }
       document.removeEventListener('click', initOnClick);
     };
     document.addEventListener('click', initOnClick, { once: true });
@@ -34,10 +49,20 @@ function OfficeApp() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('office-audioMutedV1', String(isMuted));
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
+    try {
+      localStorage.setItem('office-audioMutedV1', String(isMuted));
+    } catch (e) {}
+
     soundManager.setMute(isMuted);
     if (!isMuted) {
-      initializeAudio();
+      if (hasInteractedRef.current) {
+        initializeAudio();
+      }
     } else {
       disableAudio();
     }
