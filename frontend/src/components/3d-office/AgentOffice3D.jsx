@@ -316,7 +316,7 @@ export default function AgentOffice3D({ events, status, phase, audioEnabled = fa
       {isExpanded && (
         <div style={{ flex: 1, position: 'relative', background: '#020617' }}>
           <Canvas
-            shadows
+            shadows={{ type: THREE.PCFShadowMap }}
             camera={{ position: [0, 35, 30], fov: 45, near: 0.1, far: 600 }}
             onPointerMissed={() => {
               // Cancel drag if clicking empty space

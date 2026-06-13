@@ -1,6 +1,7 @@
 import React, { useRef, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Environment, ContactShadows } from '@react-three/drei';
+import * as THREE from 'three';
 import { AgentVisualRig } from '../3d-office/agent/AgentVisualRig';
 
 function SpinningRig({ agentConfig }) {
@@ -49,7 +50,7 @@ export default function AvatarPreview({ form }) {
       marginBottom: '1.5rem',
       boxShadow: 'inset 0 0 20px rgba(0,0,0,0.5)'
     }}>
-      <Canvas shadows camera={{ position: [0, 1, 4], fov: 45 }}>
+      <Canvas shadows={{ type: THREE.PCFShadowMap }} camera={{ position: [0, 1, 4], fov: 45 }}>
         <ambientLight intensity={0.6} />
         <directionalLight 
           position={[5, 5, 5]} 
