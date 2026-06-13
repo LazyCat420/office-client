@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { cleanAgentId } from './routing';
+import { ttsEventEmitter } from '../agent-office/ttsClient';
 
 // Maps frontend cleaned agent IDs (from useAgentEvents' cleanAgentId) back to Prism custom agent IDs.
 // These must match the actual agent IDs stored in Prism conversations' settings.agent field.
@@ -151,7 +152,7 @@ export function AgentDetailsSidebar({ agentId, agentColor, onClose, isRunning })
     }
   }, [logs]);
 
-  // Real-time Logs EventSource Stream
+  // Real-time Logs EventSource Stream and local TTS listener
   useEffect(() => {
     if (activeTab !== 'logs' || !agentId) return;
 
@@ -161,6 +162,32 @@ export function AgentDetailsSidebar({ agentId, agentColor, onClose, isRunning })
       type: 'info',
       text: `Listening to pipeline events for ${agentId}...`
     }]);
+
+    const handleSpeechEvent = (e) => {
+      const { agentId: spokenAgentId, quote, timestamp, ttsEngine } = e.detail;
+      const targetCleaned = cleanAgentId(agentId);
+      const spokenCleaned = cleanAgentId(spokenAgentId);
+
+      if (targetCleaned && spokenCleaned && targetCleaned.toLowerCase() === spokenCleaned.toLowerCase()) {
+        const cleanQuote = quote.replace(/[*_`~#]/g, '');
+        const text = `🗣️ [${ttsEngine}] Speaks: "${cleanQuote}"`;
+        
+        setLogs(prev => {
+          // Deduplicate to prevent double-logs from local TTS vs backend SSE
+          const isDuplicate = cleanQuote.length > 3 && prev.some(l => l.text.includes(cleanQuote));
+          if (isDuplicate) return prev;
+
+          return [...prev, {
+            id: `tts-${Date.now()}-${Math.random()}`,
+            timestamp,
+            type: 'info',
+            text
+          }];
+        });
+      }
+    };
+
+    ttsEventEmitter.addEventListener('speech', handleSpeechEvent);
 
     // Use our own backend SSE endpoint that polls trading-service pipeline events.
     // The old /api/v1/prism/stream proxied to Prism's webhook stream which emits zero events.
@@ -182,8 +209,16 @@ export function AgentDetailsSidebar({ agentId, agentColor, onClose, isRunning })
           let args = null;
           let result = null;
 
+          if (eventType === 'agent_voice') {
+            const cleanQuote = (data.quote || '').replace(/[*_`~#]/g, '');
+            const agentName = data.agent || 'Agent';
+            const cleanName = cleanAgentId(agentName) || agentName;
+            const tickerStr = data.ticker ? ` (${data.ticker})` : '';
+            text = `🗣️ Speaks${tickerStr}: "${cleanQuote}"`;
+            type = 'info';
+          }
           // Handle pipeline events from our backend SSE
-          if (eventType === 'pipeline.event') {
+          else if (eventType === 'pipeline.event') {
             const phase = data.phase || '';
             const step = data.step || '';
             const detail = data.detail || '';
@@ -277,14 +312,21 @@ export function AgentDetailsSidebar({ agentId, agentColor, onClose, isRunning })
           }
 
           if (text) {
-            setLogs(prev => [...prev, {
-              id: `${eventType}-${Date.now()}-${Math.random()}`,
-              timestamp,
-              type,
-              text,
-              args,
-              result
-            }]);
+            setLogs(prev => {
+              // Deduplicate to prevent double-logs from local TTS vs backend SSE
+              const cleanQuote = (data.quote || '').replace(/[*_`~#]/g, '');
+              const isDuplicate = cleanQuote.length > 3 && prev.some(l => l.text.includes(cleanQuote));
+              if (isDuplicate) return prev;
+
+              return [...prev, {
+                id: `${eventType}-${Date.now()}-${Math.random()}`,
+                timestamp,
+                type,
+                text,
+                args,
+                result
+              }];
+            });
           }
         } catch (err) {
           console.error('Error parsing SSE event in sidebar:', err);
@@ -295,6 +337,7 @@ export function AgentDetailsSidebar({ agentId, agentColor, onClose, isRunning })
     }
 
     return () => {
+      ttsEventEmitter.removeEventListener('speech', handleSpeechEvent);
       if (es) es.close();
     };
   }, [activeTab, agentId]);

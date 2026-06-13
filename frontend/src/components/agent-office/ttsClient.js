@@ -1,5 +1,8 @@
 import { CHARACTERISTICS, resolveArchetype, getFallbackQuote } from './voiceConstants';
 import { isAudioEnabled, getAudioContext, onAudioDisabled } from './audioContextManager';
+import { cleanAgentId } from './agentUtils';
+
+export const ttsEventEmitter = new EventTarget();
 
 const speechQueue = [];
 let isProcessingQueue = false;
@@ -87,6 +90,11 @@ export async function executeSpeech({ quote, agent, sceneEl, onProgress, audioPr
   const textToSpeak = quote || getFallbackQuote(archetype);
   const cleanText = textToSpeak ? textToSpeak.replace(/[*_`~#]/g, '') : '';
 
+  const rawAgentId = (agent && typeof agent === 'object') 
+    ? (agent.id || agent.agentId || 'unknown') 
+    : (typeof agent === 'string' ? agent : 'unknown');
+  const cleanedId = cleanAgentId(rawAgentId) || rawAgentId || 'unknown';
+
   if (typeof window === 'undefined' || !isAudioEnabled()) {
     if (!cleanText) return;
     const words = cleanText.split(' ').filter(w => w.length > 0);
@@ -94,6 +102,20 @@ export async function executeSpeech({ quote, agent, sceneEl, onProgress, audioPr
       if (onProgress) onProgress('', true);
       return;
     }
+
+    try {
+      ttsEventEmitter.dispatchEvent(new CustomEvent('speech', {
+        detail: {
+          agentId: cleanedId,
+          quote: cleanText,
+          timestamp: new Date().toLocaleTimeString(),
+          ttsEngine: 'Simulated Typing'
+        }
+      }));
+    } catch (e) {
+      console.warn("Failed to dispatch local speech event:", e);
+    }
+
     return new Promise((resolve) => {
       let currentWordIndex = 0;
       let wordTimeout = null;
@@ -193,6 +215,19 @@ export async function executeSpeech({ quote, agent, sceneEl, onProgress, audioPr
         resolve();
       };
 
+      try {
+        ttsEventEmitter.dispatchEvent(new CustomEvent('speech', {
+          detail: {
+            agentId: cleanedId,
+            quote: cleanText,
+            timestamp: new Date().toLocaleTimeString(),
+            ttsEngine: 'Piper TTS'
+          }
+        }));
+      } catch (e) {
+        console.warn("Failed to dispatch local speech event:", e);
+      }
+
       triggerNextWord();
 
       console.log(`[PiperTTS] Speaking (${requestedAccent}): "${textToSpeak}" at volume ${volume.toFixed(2)}`);
@@ -254,6 +289,19 @@ export async function executeSpeech({ quote, agent, sceneEl, onProgress, audioPr
     }
 
     utterance.volume = volume;
+
+    try {
+      ttsEventEmitter.dispatchEvent(new CustomEvent('speech', {
+        detail: {
+          agentId: cleanedId,
+          quote: cleanText,
+          timestamp: new Date().toLocaleTimeString(),
+          ttsEngine: 'Web Speech API'
+        }
+      }));
+    } catch (e) {
+      console.warn("Failed to dispatch local speech event:", e);
+    }
 
     console.log(`[AgentVoice Fallback] Speaking (${archetype}): "${textToSpeak}"`);
     window.speechSynthesis.speak(utterance);
