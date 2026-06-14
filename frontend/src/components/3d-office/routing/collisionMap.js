@@ -246,7 +246,7 @@ export function isLineBlocked(x1, z1, x2, z2, agentRadius = 0.5) {
 // At radius ~14 from center, at each room's angle — the "hallway" between
 // the trading floor and the perimeter rooms.
 const DOORWAY_R = 14;
-const ROOM_DOORWAYS = {};
+export const ROOM_DOORWAYS = {};
 for (const [name, angle] of Object.entries(RA)) {
   ROOM_DOORWAYS[name] = [
     DOORWAY_R * Math.sin(angle),

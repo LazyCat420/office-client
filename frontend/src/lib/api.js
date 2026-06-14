@@ -81,3 +81,6 @@ export const getAgentTools = () => request('/agent-tools');
 
 // ── Active Agents ──
 export const getActiveAgents = () => request('/agents/active');
+
+// ── Agent Data Grid ──
+export const getAgentGrid = () => request('/grid');

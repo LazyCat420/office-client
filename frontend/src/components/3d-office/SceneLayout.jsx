@@ -9,6 +9,7 @@ import { ToucanScene } from './ToucanScene';
 import { Cat } from './primitives/Cat';
 import { PaperManager } from './primitives/PaperManager';
 import { RoomDropZones } from './RoomDropZones';
+import { DebugNavMesh } from './routing/DebugNavMesh';
 
 /**
  * SceneLayout — Orchestrates the full 100th floor trading office scene.
@@ -102,7 +103,6 @@ export function SceneLayout({
           <SkyDome />
           <CloudLayer />
           <SkyscraperShell />
-
           {/* ═══ Visual Grid Overlay ═══ */}
           {showGrid && (
             <gridHelper
@@ -112,7 +112,7 @@ export function SceneLayout({
           )}
 
           {/* ═══ Visual Node Proximity Network Overlay ═══ */}
-          {showNetwork && <VisualNodeNetwork agents={agentsWithDrag} />}
+          <DebugNavMesh agents={Object.values(agentsWithDrag)} visible={showNetwork} />
 
           {/* ═══ Interior ═══ */}
           <Stations />

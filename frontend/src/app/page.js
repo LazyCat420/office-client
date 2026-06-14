@@ -8,6 +8,8 @@ import { initializeAudio, disableAudio } from '@/components/agent-office/audioCo
 import { soundManager } from '@/components/3d-office/SoundManager';
 import ErrorBoundary from '@/components/ErrorBoundary';
 
+import { AgentGridPanel } from '@/components/agent-office/AgentGridPanel';
+
 const AgentOffice3D = dynamic(() => import('@/components/3d-office/AgentOffice3D'), { ssr: false });
 
 function OfficeApp() {
@@ -19,6 +21,9 @@ function OfficeApp() {
   const isMutedRef = useRef(isMuted);
   const isInitialMount = useRef(true);
   const hasInteractedRef = useRef(false);
+
+  // Data Grid Toggle
+  const [showDataGrid, setShowDataGrid] = useState(false);
 
   useEffect(() => {
     isMutedRef.current = isMuted;
@@ -91,6 +96,13 @@ function OfficeApp() {
 
         <div className="office-toolbar-actions">
           <button
+            className={`toolbar-btn ${showDataGrid ? 'active' : ''}`}
+            onClick={() => setShowDataGrid(prev => !prev)}
+            style={{ marginRight: 8, padding: '4px 12px', borderRadius: 4, background: showDataGrid ? 'rgba(56,189,248,0.2)' : 'rgba(255,255,255,0.05)', border: `1px solid ${showDataGrid ? '#38bdf8' : 'transparent'}`, color: showDataGrid ? '#38bdf8' : '#e2e8f0', cursor: 'pointer' }}
+          >
+            📊 Data Grid
+          </button>
+          <button
             className={`mute-btn ${!isMuted ? 'unmuted' : ''}`}
             onClick={() => setIsMuted(prev => !prev)}
           >
@@ -100,7 +112,7 @@ function OfficeApp() {
       </div>
 
       {/* ── Content ─────────────────────────────────── */}
-      <div className="office-content">
+      <div className="office-content" style={{ position: 'relative' }}>
         {/* Main 3D Office */}
         <div className="office-main">
           <ErrorBoundary>
@@ -112,6 +124,9 @@ function OfficeApp() {
             />
           </ErrorBoundary>
         </div>
+
+        {/* Data Grid Overlay */}
+        <AgentGridPanel visible={showDataGrid} />
       </div>
     </div>
   );
