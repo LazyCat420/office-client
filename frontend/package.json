@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "sync-shared": "bash ../../deploy-kit/sync-frontend.sh",
+    "sync-shared": "[ -f ../../deploy-kit/sync-frontend.sh ] && bash ../../deploy-kit/sync-frontend.sh || echo 'Skipping sync (sync script not found)'",
     "dev": "npm run sync-shared && next dev -p 3035 -H 0.0.0.0",
     "build": "npm run sync-shared && next build",
     "start": "next start -p 3035",
