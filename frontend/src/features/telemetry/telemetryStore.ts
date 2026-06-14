@@ -44,12 +44,20 @@ export function TelemetryProvider({ children }: { children: React.ReactNode }) {
 
     if (s.cycle_id) {
       setEventsByCycle((prev) => {
-        const oldEvents = prev[s.cycle_id] || [];
+        const next = { ...prev };
+        const oldEvents = next[s.cycle_id] || [];
         const finalEvents = (s.events && Array.isArray(s.events) && s.events.length >= oldEvents.length) ? s.events : oldEvents;
-        return {
-          ...prev,
-          [s.cycle_id]: finalEvents,
-        };
+        next[s.cycle_id] = finalEvents;
+
+        // Keep at most 5 cycles to prevent unbounded memory growth
+        const keys = Object.keys(next);
+        if (keys.length > 5) {
+          const oldestKey = keys.find(k => k !== s.cycle_id);
+          if (oldestKey) {
+            delete next[oldestKey];
+          }
+        }
+        return next;
       });
     }
   }, []);
