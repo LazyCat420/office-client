@@ -1,4 +1,5 @@
 import React, { Suspense, useMemo } from 'react';
+import * as THREE from 'three';
 import { Environment } from '@react-three/drei';
 import { Physics } from '@react-three/rapier';
 import { Stations } from './Stations';
@@ -34,6 +35,7 @@ export function SceneLayout({
   dragState,
   onStartDrag,
   showGrid = false,
+  showNetwork = false,
 }) {
   // When dragging, override the dragged agent's position for visual feedback
   const agentsWithDrag = useMemo(() => {
@@ -109,6 +111,9 @@ export function SceneLayout({
             />
           )}
 
+          {/* ═══ Visual Node Proximity Network Overlay ═══ */}
+          {showNetwork && <VisualNodeNetwork agents={agentsWithDrag} />}
+
           {/* ═══ Interior ═══ */}
           <Stations />
           <PaperManager agents={agentsWithDrag} />
@@ -142,6 +147,77 @@ export function SceneLayout({
         </Physics>
       </Suspense>
     </>
+  );
+}
+
+/**
+ * VisualNodeNetwork — Draws visual glow spheres above agents and links them
+ * with dynamic proximity lines based on 3D distance calculations.
+ */
+function VisualNodeNetwork({ agents }) {
+  const agentList = useMemo(() => {
+    return Object.values(agents)
+      .filter(a => a.state !== 'EXITING' && a.id)
+      .map(a => ({
+        id: a.id,
+        pos: new THREE.Vector3(a.x || a.targetX || 0, 0.8, a.z || a.targetZ || 0),
+        color: a.color || '#38bdf8'
+      }));
+  }, [agents]);
+
+  const lines = useMemo(() => {
+    const list = [];
+    const threshold = 20; // 20 units threshold for proximity link
+    for (let i = 0; i < agentList.length; i++) {
+      for (let j = i + 1; j < agentList.length; j++) {
+        const a = agentList[i];
+        const b = agentList[j];
+        const dist = a.pos.distanceTo(b.pos);
+        if (dist < threshold) {
+          list.push({
+            id: `${a.id}-${b.id}`,
+            points: [a.pos.clone(), b.pos.clone()],
+            dist
+          });
+        }
+      }
+    }
+    return list;
+  }, [agentList]);
+
+  return (
+    <group name="visual-node-network">
+      {/* Dynamic line connections */}
+      {lines.map(line => {
+        // Gradient opacity based on distance
+        const opacity = Math.max(0.1, 1 - line.dist / 20) * 0.75;
+        const geom = new THREE.BufferGeometry().setFromPoints(line.points);
+        return (
+          <line key={line.id} geometry={geom}>
+            <lineBasicMaterial 
+              color="#a855f7" 
+              transparent 
+              opacity={opacity} 
+              linewidth={2} 
+            />
+          </line>
+        );
+      })}
+
+      {/* Glow node spheres above agents */}
+      {agentList.map(a => (
+        <group key={`node-${a.id}`} position={[a.pos.x, a.pos.y + 1.2, a.pos.z]}>
+          <mesh>
+            <sphereGeometry args={[0.12, 16, 16]} />
+            <meshBasicMaterial color="#a855f7" />
+          </mesh>
+          <mesh>
+            <sphereGeometry args={[0.25, 16, 16]} />
+            <meshBasicMaterial color="#c084fc" transparent opacity={0.3} />
+          </mesh>
+        </group>
+      ))}
+    </group>
   );
 }
 
