@@ -41,6 +41,7 @@ export default function AgentOffice3D({ events, status, phase, audioEnabled = fa
   // Selection states
   const [selectedAgentId, setSelectedAgentId] = useState(null);
   const [selectedAgentDetails, setSelectedAgentDetails] = useState(null);
+  const [showGrid, setShowGrid] = useState(false);
 
   // Persona config cache — maps role → avatar_config
   const personaMapRef = useRef({});
@@ -320,6 +321,33 @@ export default function AgentOffice3D({ events, status, phase, audioEnabled = fa
 
       {isExpanded && (
         <div style={{ flex: 1, position: 'relative', background: '#020617' }}>
+          {/* Grid Toggle Overlay Button */}
+          <button
+            onClick={() => setShowGrid(!showGrid)}
+            style={{
+              position: 'absolute',
+              top: 12,
+              left: 12,
+              zIndex: 10,
+              background: showGrid ? 'rgba(56, 189, 248, 0.25)' : 'rgba(30, 41, 59, 0.65)',
+              border: showGrid ? '1px solid #38bdf8' : '1px solid #475569',
+              color: showGrid ? '#38bdf8' : '#e2e8f0',
+              padding: '6px 12px',
+              borderRadius: '6px',
+              fontSize: '11px',
+              fontWeight: '600',
+              fontFamily: 'system-ui, sans-serif',
+              cursor: 'pointer',
+              backdropFilter: 'blur(4px)',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)'
+            }}
+          >
+            🌐 {showGrid ? 'Grid On' : 'Grid Off'}
+          </button>
           <Canvas
             shadows={{ type: THREE.PCFShadowMap }}
             camera={{ position: [0, 35, 30], fov: 45, near: 0.1, far: 600 }}
@@ -359,6 +387,7 @@ export default function AgentOffice3D({ events, status, phase, audioEnabled = fa
               onSelectAgent={setSelectedAgentId} 
               onArriveAgent={handleArriveAgent}
               dragState={dragState}
+              showGrid={showGrid}
               onStartDrag={(agentId, event) => {
                 const agent = agents[agentId];
                 if (!agent) return;

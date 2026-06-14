@@ -33,6 +33,7 @@ export function SceneLayout({
   // Drag system props
   dragState,
   onStartDrag,
+  showGrid = false,
 }) {
   // When dragging, override the dragged agent's position for visual feedback
   const agentsWithDrag = useMemo(() => {
@@ -99,6 +100,14 @@ export function SceneLayout({
           <SkyDome />
           <CloudLayer />
           <SkyscraperShell />
+
+          {/* ═══ Visual Grid Overlay ═══ */}
+          {showGrid && (
+            <gridHelper
+              args={[70, 70, '#38bdf8', '#1e293b']}
+              position={[0, 0.02, 0]}
+            />
+          )}
 
           {/* ═══ Interior ═══ */}
           <Stations />
