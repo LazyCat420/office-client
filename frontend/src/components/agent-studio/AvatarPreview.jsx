@@ -1,10 +1,7 @@
 import React, { useRef, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Environment, ContactShadows } from '@react-three/drei';
-import * as THREE from 'three';
-import { AgentVisualRig } from '../3d-office/agent/AgentVisualRig';
-
-function SpinningRig({ agentConfig }) {
+function DefaultSpinningRig({ agentConfig }) {
   const groupRef = useRef();
 
   // Slowly rotate the agent on the Y axis
@@ -14,30 +11,24 @@ function SpinningRig({ agentConfig }) {
     }
   });
 
-  // Convert the flat form data into an agent object that AgentVisualRig expects
-  const rigAgent = useMemo(() => ({
-    id: 'Preview',
-    color: agentConfig.avatar_config?.outfit_color || '#3b82f6',
-    avatar_config: agentConfig.avatar_config || {},
-    tool: '',
-    state: 'idle',
-    pose: 'stand',
-  }), [agentConfig]);
+  const color = agentConfig.avatar_config?.outfit_color || '#3b82f6';
 
   return (
-    <group ref={groupRef} position={[0, -1.2, 0]}>
-      <AgentVisualRig
-        agent={rigAgent}
-        isSelected={false}
-        isExiting={false}
-        showToolBadge={false}
-        bodyScale={1.5}
-      />
+    <group ref={groupRef} position={[0, -0.5, 0]}>
+      {/* Simple stylized representation since AgentVisualRig was moved to office-client */}
+      <mesh position={[0, 1.5, 0]}>
+        <boxGeometry args={[1, 1, 1]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
+      <mesh position={[0, 0.5, 0]}>
+        <cylinderGeometry args={[0.5, 0.5, 1, 16]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
     </group>
   );
 }
 
-export default function AvatarPreview({ form }) {
+export default function AvatarPreview({ form, RigComponent }) {
   return (
     <div className="agent-studio__avatar-preview" style={{ 
       width: '100%', 
@@ -50,7 +41,7 @@ export default function AvatarPreview({ form }) {
       marginBottom: '1.5rem',
       boxShadow: 'inset 0 0 20px rgba(0,0,0,0.5)'
     }}>
-      <Canvas shadows={{ type: THREE.PCFShadowMap }} camera={{ position: [0, 1, 4], fov: 45 }}>
+      <Canvas shadows camera={{ position: [0, 1, 4], fov: 45 }}>
         <ambientLight intensity={0.6} />
         <directionalLight 
           position={[5, 5, 5]} 
@@ -61,7 +52,11 @@ export default function AvatarPreview({ form }) {
         />
         <directionalLight position={[-5, 5, -5]} intensity={0.3} />
         
-        <SpinningRig agentConfig={form} />
+        {RigComponent ? (
+          <RigComponent agentConfig={form} />
+        ) : (
+          <DefaultSpinningRig agentConfig={form} />
+        )}
         
         <ContactShadows 
           position={[0, -1.2, 0]} 

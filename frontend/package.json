@@ -3,8 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3035 -H 0.0.0.0",
-    "build": "next build",
+    "sync-shared": "bash ../../deploy-kit/sync-frontend.sh",
+    "dev": "npm run sync-shared && next dev -p 3035 -H 0.0.0.0",
+    "build": "npm run sync-shared && next build",
     "start": "next start -p 3035",
     "lint": "eslint"
   },

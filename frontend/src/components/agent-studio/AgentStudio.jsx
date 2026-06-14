@@ -26,12 +26,21 @@ const ROLE_ICONS = {
   PM: '👔',
 };
 
-export default function AgentStudio() {
+export default function AgentStudio({
+  showExtraTabs = false,
+  ChatPanelComponent,
+  LogsPanelComponent,
+  AgentDataPanelComponent,
+  RigComponent
+}) {
   const [agents, setAgents] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [newlySavedId, setNewlySavedId] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [rightTab, setRightTab] = useState('editor'); // 'editor' | 'omni'
+  const [rightTab, setRightTab] = useState('editor'); // 'editor' | 'omni' | 'chat' | 'logs' | 'data'
+
+  // State for the agent's specific chat panel
+  const [agentMessages, setAgentMessages] = useState([]);
 
   const loadAgents = useCallback(async () => {
     setLoading(true);
@@ -210,6 +219,33 @@ export default function AgentStudio() {
           >
             ✏️ Agent Editor
           </button>
+          {showExtraTabs && ChatPanelComponent && (
+            <button
+              className={`agent-studio__tab${rightTab === 'chat' ? ' agent-studio__tab--active' : ''}`}
+              onClick={() => setRightTab('chat')}
+              disabled={!selectedAgent}
+            >
+              💬 Live Chat
+            </button>
+          )}
+          {showExtraTabs && LogsPanelComponent && (
+            <button
+              className={`agent-studio__tab${rightTab === 'logs' ? ' agent-studio__tab--active' : ''}`}
+              onClick={() => setRightTab('logs')}
+              disabled={!selectedAgent}
+            >
+              📋 Logs
+            </button>
+          )}
+          {showExtraTabs && AgentDataPanelComponent && (
+            <button
+              className={`agent-studio__tab${rightTab === 'data' ? ' agent-studio__tab--active' : ''}`}
+              onClick={() => setRightTab('data')}
+              disabled={!selectedAgent}
+            >
+              📊 Outputs & Data
+            </button>
+          )}
           <button
             className={`agent-studio__tab${rightTab === 'omni' ? ' agent-studio__tab--active' : ''}`}
             onClick={() => setRightTab('omni')}
@@ -224,8 +260,32 @@ export default function AgentStudio() {
             agent={selectedAgent}
             onSave={handleSave}
             onDelete={handleDelete}
+            RigComponent={RigComponent}
           />
         </div>
+        {showExtraTabs && ChatPanelComponent && (
+          <div className="agent-studio__tab-content" style={{ display: rightTab === 'chat' ? undefined : 'none', overflow: 'hidden' }}>
+            {selectedAgent && (
+              <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: 'var(--space-md)' }}>
+                <ChatPanelComponent
+                  messages={agentMessages}
+                  setMessages={setAgentMessages}
+                  agentNameFilter={selectedAgent.name}
+                />
+              </div>
+            )}
+          </div>
+        )}
+        {showExtraTabs && LogsPanelComponent && (
+          <div className="agent-studio__tab-content" style={{ display: rightTab === 'logs' ? undefined : 'none', overflow: 'hidden' }}>
+            {selectedAgent && <LogsPanelComponent agentName={selectedAgent.name} />}
+          </div>
+        )}
+        {showExtraTabs && AgentDataPanelComponent && (
+          <div className="agent-studio__tab-content" style={{ display: rightTab === 'data' ? undefined : 'none', overflow: 'hidden' }}>
+            {selectedAgent && <AgentDataPanelComponent agentName={selectedAgent.name} />}
+          </div>
+        )}
         <div className="agent-studio__tab-content" style={{ display: rightTab === 'omni' ? undefined : 'none' }}>
           <OmniChat onCreateAgent={handleNew} onRefreshRoster={loadAgents} onAgentSaved={handleSave} rosterCount={agents.length} />
         </div>

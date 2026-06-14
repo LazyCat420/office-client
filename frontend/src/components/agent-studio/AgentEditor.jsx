@@ -67,7 +67,7 @@ const ACCENTS = [
   { value: "en_US-sam-medium", label: "US Sam (Medium)" },
 ];
 
-export default function AgentEditor({ agent, onSave, onDelete }) {
+export default function AgentEditor({ agent, onSave, onDelete, RigComponent }) {
   const [form, setForm] = useState({});
   const [tools, setTools] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -410,7 +410,7 @@ export default function AgentEditor({ agent, onSave, onDelete }) {
           <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
             {/* Left side: Preview Canvas */}
             <div style={{ flex: '1' }}>
-              <AvatarPreview form={form} />
+              <AvatarPreview form={form} RigComponent={RigComponent} />
             </div>
             
             {/* Right side: Color Controls */}

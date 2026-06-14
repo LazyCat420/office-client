@@ -16,4 +16,9 @@ IMAGE_NAME="office-client"
 DISPLAY_NAME="🏢 Office Client"
 SKIP_ENV_DEPLOY=true
 
+PRE_BUILD() {
+  info "Syncing shared frontend folders from trading-client..."
+  bash "${SCRIPT_DIR}/../deploy-kit/sync-frontend.sh"
+}
+
 source "${SCRIPT_DIR}/../deploy-kit/lib.sh"

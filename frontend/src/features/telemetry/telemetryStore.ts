@@ -29,12 +29,12 @@ export function TelemetryProvider({ children }: { children: React.ReactNode }) {
         const hasNewResults = s.results && s.results.length > 0;
 
         if (hasOldEvents) {
-          if (!hasNewEvents || prev.events.length >= s.events.length) {
+          if (!hasNewEvents || prev.events.length > s.events.length) {
             resolvedEvents = prev.events;
           }
         }
         if (hasOldResults) {
-          if (!hasNewResults || prev.results.length >= s.results.length) {
+          if (!hasNewResults || prev.results.length > s.results.length) {
             resolvedResults = prev.results;
           }
         }
@@ -45,7 +45,7 @@ export function TelemetryProvider({ children }: { children: React.ReactNode }) {
     if (s.cycle_id) {
       setEventsByCycle((prev) => {
         const oldEvents = prev[s.cycle_id] || [];
-        const finalEvents = (s.events && Array.isArray(s.events) && s.events.length > oldEvents.length) ? s.events : oldEvents;
+        const finalEvents = (s.events && Array.isArray(s.events) && s.events.length >= oldEvents.length) ? s.events : oldEvents;
         return {
           ...prev,
           [s.cycle_id]: finalEvents,
