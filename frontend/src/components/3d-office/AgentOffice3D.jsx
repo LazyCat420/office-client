@@ -204,6 +204,13 @@ export default function AgentOffice3D({ events, status, phase, audioEnabled = fa
       BEHAVIORAL: ['sentiment', 'vance', 'behavioral', 'bull_', 'bear_'],
       RISK: ['risk', 'helen', 'pre_trade'],
       PM: ['boss', 'pm', 'allocator', 'executor', 'trade_agent'],
+      imhotep: ['imhotep'],
+      pythagoras: ['pythagoras'],
+      archimedes: ['archimedes'],
+      caesar: ['caesar'],
+      al_khwarizmi: ['al_khwarizmi', 'khwarizmi'],
+      brahmagupta: ['brahmagupta'],
+      newton_leibniz: ['newton', 'leibniz', 'newton_leibniz'],
     };
 
     let needsUpdate = false;
