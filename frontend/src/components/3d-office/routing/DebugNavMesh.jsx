@@ -5,8 +5,9 @@ import { OBSTACLES, ROOM_DOORWAYS } from './collisionMap';
 export function DebugNavMesh({ visible, agents = [] }) {
   // Proximity calculations for nodes
   const proximityLines = useMemo(() => {
-    if (!visible || !agents || agents.length < 2) return [];
+    if (!visible || !agents || agents.length < 1) return [];
 
+    const BLDG_R = 32;
     const lines = [];
     const positions = agents.map(a => {
       // Use target position if walking, otherwise current
@@ -56,6 +57,44 @@ export function DebugNavMesh({ visible, agents = [] }) {
           end: [furthest.x, 0.5, furthest.z],
           color: '#ef4444', // red for furthest
           type: 'furthest'
+        });
+      }
+
+      // Calculate building edge points
+      const distFromCenter = Math.sqrt(p1.x * p1.x + p1.z * p1.z);
+      if (distFromCenter > 0.001) {
+        // Nearest edge: same direction
+        const nearestX = (p1.x / distFromCenter) * BLDG_R;
+        const nearestZ = (p1.z / distFromCenter) * BLDG_R;
+        lines.push({
+          start: [p1.x, 0.5, p1.z],
+          end: [nearestX, 0.5, nearestZ],
+          color: '#10b981', // green for closest edge
+          type: 'edge-nearest'
+        });
+
+        // Furthest edge: opposite direction
+        const furthestX = -(p1.x / distFromCenter) * BLDG_R;
+        const furthestZ = -(p1.z / distFromCenter) * BLDG_R;
+        lines.push({
+          start: [p1.x, 0.5, p1.z],
+          end: [furthestX, 0.5, furthestZ],
+          color: '#ef4444', // red for furthest edge
+          type: 'edge-furthest'
+        });
+      } else {
+        // Exactly at center
+        lines.push({
+          start: [0, 0.5, 0],
+          end: [0, 0.5, BLDG_R],
+          color: '#10b981',
+          type: 'edge-nearest'
+        });
+        lines.push({
+          start: [0, 0.5, 0],
+          end: [0, 0.5, -BLDG_R],
+          color: '#ef4444',
+          type: 'edge-furthest'
         });
       }
     }
