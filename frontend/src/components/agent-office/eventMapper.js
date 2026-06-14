@@ -179,7 +179,10 @@ function extractAgentId(event) {
   
   // 4. Debate / Consensus
   if (station === 'debate') {
-    return 'BULLISH_DEBATER'; // advocate gets mapped to BEARISH_DEBATER via mapEvent below
+    if (stepLower.includes('bear') || detailLower.includes('bear') || phaseLower.includes('bear')) {
+      return 'BEARISH_DEBATER';
+    }
+    return 'BULLISH_DEBATER'; // advocate gets mapped to BEARISH_DEBATER/BULLISH_DEBATER via mapEvent below
   }
   
   // 5. Dynamic Agent Name Matching (for standard pipeline agents)
@@ -187,7 +190,6 @@ function extractAgentId(event) {
     'cycle_trading_analyst',
     'fundamental_agent',
     'sentiment_agent',
-    'sediment_agent', // user mentioned this
     'trading_cycle_analysis_agent',
     'technical_analysis_agent',
     'market_alpha',
