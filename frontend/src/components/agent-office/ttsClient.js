@@ -88,7 +88,7 @@ export function getVoiceForAgent(agent, archetype) {
 export async function executeSpeech({ quote, agent, sceneEl, onProgress, audioPromise }) {
   const archetype = resolveArchetype(agent);
   const textToSpeak = quote || getFallbackQuote(archetype);
-  const cleanText = textToSpeak ? textToSpeak.replace(/[*_`~#]/g, '') : '';
+  const cleanText = textToSpeak ? textToSpeak.replace(/[*_`~#]/g, '').replace(/[^\w\s\.,!\?\-\'":;À-ÿ]/g, '') : '';
 
   const rawAgentId = (agent && typeof agent === 'object') 
     ? (agent.id || agent.agentId || 'unknown') 
@@ -327,7 +327,7 @@ async function processQueue() {
 export function triggerAgentSpeech(quote, agent, sceneEl, onProgress) {
   const archetype = resolveArchetype(agent);
   const textToSpeak = quote || getFallbackQuote(archetype);
-  const cleanText = textToSpeak ? textToSpeak.replace(/[*_`~#]/g, '') : '';
+  const cleanText = textToSpeak ? textToSpeak.replace(/[*_`~#]/g, '').replace(/[^\w\s\.,!\?\-\'":;À-ÿ]/g, '') : '';
   const requestedAccent = agent?.voice_accent || agent?.avatar_config?.voice_accent || "default";
 
   let audioPromise = null;
