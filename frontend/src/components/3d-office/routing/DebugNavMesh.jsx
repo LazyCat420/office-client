@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import * as THREE from 'three';
 import { OBSTACLES, ROOM_DOORWAYS } from './collisionMap';
 
 export function DebugNavMesh({ visible, agents = [] }) {
@@ -138,11 +139,14 @@ export function DebugNavMesh({ visible, agents = [] }) {
             const midY = (line.start[1] + line.end[1]) / 2;
             const midZ = (line.start[2] + line.end[2]) / 2;
             
-            const pitch = Math.atan2(dy, Math.sqrt(dx * dx + dz * dz));
-            const yaw = Math.atan2(dx, dz);
+            const direction = new THREE.Vector3(dx, dy, dz).normalize();
+            const quaternion = new THREE.Quaternion().setFromUnitVectors(
+              new THREE.Vector3(0, 1, 0),
+              direction
+            );
             
             return (
-              <mesh position={[midX, midY, midZ]} rotation={[-pitch, yaw, 0]}>
+              <mesh position={[midX, midY, midZ]} quaternion={quaternion}>
                 <cylinderGeometry args={[0.03, 0.03, length, 8]} />
                 <meshBasicMaterial color={line.color} transparent opacity={0.4} />
               </mesh>
