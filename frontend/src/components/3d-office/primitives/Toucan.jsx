@@ -1,7 +1,6 @@
 import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { soundManager } from '../SoundManager';
 
 /**
  * Toucan — A colorful animated toucan that flies randomly around the office.
@@ -139,7 +138,6 @@ export function Toucan({ glassCupPositions = [], onBreakCup }) {
       <mesh 
         onClick={(e) => {
           e.stopPropagation();
-          soundManager.playQuack(true);
           state.current.y += 0.5;
           state.current.pitch -= 0.5;
         }}
