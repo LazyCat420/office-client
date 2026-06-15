@@ -171,7 +171,7 @@ export async function executeSpeech({ quote, agent, sceneEl, onProgress, audioPr
       const bufferSource = audioCtx.createBufferSource();
       bufferSource.buffer = decodedAudioBuffer;
       
-      const customPlaybackRate = agent?.voice_rate ?? agent?.voiceRate ?? (CHARACTERISTICS[archetype] || CHARACTERISTICS.RESEARCH).rate;
+      const customPlaybackRate = (agent?.voice_rate ?? agent?.voiceRate ?? (CHARACTERISTICS[archetype] || CHARACTERISTICS.RESEARCH).rate) * 1.15;
       bufferSource.playbackRate.value = customPlaybackRate;
       
       const gainNode = audioCtx.createGain();
@@ -281,7 +281,7 @@ export async function executeSpeech({ quote, agent, sceneEl, onProgress, audioPr
     const customRate = agent?.voice_rate ?? agent?.voiceRate;
     
     utterance.pitch = (customPitch !== undefined && customPitch !== null) ? customPitch : char.pitch;
-    utterance.rate = (customRate !== undefined && customRate !== null) ? customRate : char.rate;
+    utterance.rate = ((customRate !== undefined && customRate !== null) ? customRate : char.rate) * 1.15;
 
     const voice = getVoiceForAgent(agent, archetype);
     if (voice) {
