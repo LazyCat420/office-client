@@ -8,12 +8,12 @@
   --font-sans: 'Inter', 'Outfit', -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
-  --bg-root: #000000;
-  --bg-primary: #050505;
-  --bg-secondary: #0a0a0a;
-  --bg-tertiary: #111111;
-  --bg-hover: #1a1a1a;
-  --bg-glass: #0a0a0a;
+  --background-root: #000000;
+  --background-primary: #050505;
+  --background-secondary: #0a0a0a;
+  --background-tertiary: #111111;
+  --background-hover-state: #1a1a1a;
+  --background-glass: #0a0a0a;
 
   --border: #333333;
   --border-bright: #555555;
@@ -26,7 +26,7 @@
   --text-bright: #ffffff;
 
   --accent: #ffffff;
-  --accent-bg: rgba(255, 255, 255, 0.06);
+  --accent-background-color: rgba(255, 255, 255, 0.06);
   --accent-bright: #ffffff;
   --accent-dim: rgba(255, 255, 255, 0.3);
 
@@ -36,11 +36,11 @@
   --purple-bg: rgba(255, 255, 255, 0.05);
 
   --buy: #ffffff;
-  --buy-bg: rgba(255, 255, 255, 0.10);
+  --buy-action-background: rgba(255, 255, 255, 0.10);
   --sell: #cccccc;
-  --sell-bg: rgba(200, 200, 200, 0.10);
+  --sell-action-background: rgba(200, 200, 200, 0.10);
   --hold: #999999;
-  --hold-bg: rgba(153, 153, 153, 0.08);
+  --hold-action-background: rgba(153, 153, 153, 0.08);
 
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -71,7 +71,7 @@
 
 html, body {
   height: 100%;
-  background: var(--bg-root);
+  background: var(--background-root);
   color: var(--text-primary);
   font-family: var(--font-sans);
   font-size: 14px;
@@ -95,14 +95,14 @@ html, body {
   font-weight: 700;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: var(--bg-tertiary);
+  background: var(--background-tertiary);
   color: var(--text-primary);
   cursor: pointer;
   transition: all var(--transition-fast);
   font-family: inherit;
 }
 .btn:hover {
-  background: var(--bg-hover);
+  background: var(--background-hover-state);
   border-color: var(--accent);
 }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -123,7 +123,7 @@ html, body {
 .input {
   padding: 8px 12px;
   font-size: 0.83rem;
-  background: var(--bg-root);
+  background: var(--background-root);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
@@ -146,15 +146,15 @@ html, body {
   letter-spacing: 0.5px;
   border: 1px solid currentColor;
 }
-.badge-buy { background: var(--buy-bg); color: var(--buy); border-color: var(--buy); }
-.badge-sell { background: var(--sell-bg); color: var(--sell); border-color: var(--sell); }
-.badge-hold { background: var(--hold-bg); color: var(--hold); border-color: var(--hold); }
-.badge-info { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); }
+.badge-buy { background: var(--buy-action-background); color: var(--buy); border-color: var(--buy); }
+.badge-sell { background: var(--sell-action-background); color: var(--sell); border-color: var(--sell); }
+.badge-hold { background: var(--hold-action-background); color: var(--hold); border-color: var(--hold); }
+.badge-info { background: var(--accent-background-color); color: var(--accent); border-color: var(--accent); }
 .badge-teal { background: var(--teal-bg); color: var(--teal); border-color: var(--teal); }
 
 /* ── Cards ────────────────────────────────────────────────────────── */
 .card {
-  background: var(--bg-secondary);
+  background: var(--background-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: var(--space-lg);
@@ -202,12 +202,12 @@ html, body {
   word-wrap: break-word;
 }
 .chat-user {
-  background: var(--accent-bg);
+  background: var(--accent-background-color);
   border: 1px solid var(--border-accent);
   margin-left: auto;
 }
 .chat-bot {
-  background: var(--bg-secondary);
+  background: var(--background-secondary);
   border: 1px solid var(--border);
 }
 
@@ -267,7 +267,7 @@ tbody td {
   font-size: 0.83rem;
   border-bottom: 1px solid var(--border);
 }
-tbody tr:hover { background: var(--bg-hover); }
+tbody tr:hover { background: var(--background-hover-state); }
 
 /* ── App Layout (office-specific) ─────────────────────────────────── */
 .office-shell {
@@ -282,7 +282,7 @@ tbody tr:hover { background: var(--bg-hover); }
   align-items: center;
   justify-content: space-between;
   padding: 8px 16px;
-  background: var(--bg-primary);
+  background: var(--background-primary);
   border-bottom: 1px solid var(--border);
   min-height: 44px;
   gap: 12px;
@@ -321,7 +321,7 @@ tbody tr:hover { background: var(--bg-hover); }
   min-width: 320px;
   max-width: 500px;
   border-left: 1px solid var(--border);
-  background: var(--bg-primary);
+  background: var(--background-primary);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -374,7 +374,7 @@ tbody tr:hover { background: var(--bg-hover); }
   gap: 4px;
   padding: 4px 10px;
   font-size: 0.75rem;
-  background: var(--bg-tertiary);
+  background: var(--background-tertiary);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
@@ -391,7 +391,7 @@ tbody tr:hover { background: var(--bg-hover); }
 .mute-btn.unmuted {
   border-color: var(--accent);
   color: var(--accent);
-  background: var(--accent-bg);
+  background: var(--accent-background-color);
 }
 
 /* ── Status Indicator ─────────────────────────────────────────────── */

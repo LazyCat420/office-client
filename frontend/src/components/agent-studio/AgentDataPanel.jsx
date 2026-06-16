@@ -73,7 +73,7 @@ export default function AgentDataPanel({ agentName }) {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
         {outputs.map((out) => (
-          <div key={out.id} className="agent-studio__data-card" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: 'var(--space-md)' }}>
+          <div key={out.id} className="agent-studio__data-card" style={{ background: 'var(--background-secondary)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: 'var(--space-md)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-sm)' }}>
               <strong style={{ color: 'var(--text-primary)' }}>
                 {out.ticker}
