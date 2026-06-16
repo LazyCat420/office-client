@@ -54,6 +54,18 @@
 
   --transition-fast: 0.1s ease;
   --transition-med: 0.2s ease;
+  
+  /* Backward Compatibility Aliases for Synced Frontend Components */
+  --bg-root: var(--background-root);
+  --bg-primary: var(--background-primary);
+  --bg-secondary: var(--background-secondary);
+  --bg-tertiary: var(--background-tertiary);
+  --bg-hover: var(--background-hover-state);
+  --bg-glass: var(--background-glass);
+  --accent-bg: var(--accent-background-color);
+  --buy-bg: var(--buy-action-background);
+  --sell-bg: var(--sell-action-background);
+  --hold-bg: var(--hold-action-background);
 
   --shadow-sm: none;
   --shadow-md: none;
