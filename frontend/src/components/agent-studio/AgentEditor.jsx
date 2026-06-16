@@ -184,7 +184,7 @@ export default function AgentEditor({ agent, onSave, onDelete, RigComponent }) {
 
       const source = audioCtx.createBufferSource();
       source.buffer = audioBuffer;
-      source.playbackRate.value = (form.voice_rate ?? 1.0) * 1.15;
+      source.playbackRate.value = form.voice_rate ?? 1.0;
       source.connect(audioCtx.destination);
       source.start(0);
     } catch (err) {
@@ -194,7 +194,7 @@ export default function AgentEditor({ agent, onSave, onDelete, RigComponent }) {
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.pitch = form.voice_pitch ?? 1.0;
-        utterance.rate = (form.voice_rate ?? 1.0) * 1.15;
+        utterance.rate = form.voice_rate ?? 1.0;
         window.speechSynthesis.speak(utterance);
       }
     }
