@@ -28,15 +28,16 @@ export function TelemetryProvider({ children }: { children: React.ReactNode }) {
         const hasOldResults = prev.results && prev.results.length > 0;
         const hasNewResults = s.results && s.results.length > 0;
 
-        if (hasOldEvents) {
-          if (!hasNewEvents || prev.events.length > s.events.length) {
-            resolvedEvents = prev.events;
-          }
+        if (hasOldEvents && hasNewEvents) {
+          // Prefer newer payload when same or greater length (may have updated statuses)
+          resolvedEvents = s.events.length >= prev.events.length ? s.events : prev.events;
+        } else if (hasOldEvents && !hasNewEvents) {
+          resolvedEvents = prev.events;
         }
-        if (hasOldResults) {
-          if (!hasNewResults || prev.results.length > s.results.length) {
-            resolvedResults = prev.results;
-          }
+        if (hasOldResults && hasNewResults) {
+          resolvedResults = s.results.length >= prev.results.length ? s.results : prev.results;
+        } else if (hasOldResults && !hasNewResults) {
+          resolvedResults = prev.results;
         }
       }
       return { ...s, events: resolvedEvents, results: resolvedResults };
@@ -88,7 +89,7 @@ export function TelemetryProvider({ children }: { children: React.ReactNode }) {
     // due to reconnect gaps or JSON dedup.
     const heartbeatInterval = setInterval(() => {
       if (isSubscribed) {
-        loadCycleStatus(true); // summary_only=true to minimize bandwidth
+        loadCycleStatus(false); // full payload to catch missed SSE events
       }
     }, 10_000);
 
@@ -115,7 +116,9 @@ export function TelemetryProvider({ children }: { children: React.ReactNode }) {
         isSSEActive = false;
         if (es) es.close();
         if (isSubscribed) {
-          reconnectTimer = setTimeout(connectSSE, 5000);
+          // Immediate full fetch to bridge the SSE gap
+          loadCycleStatus(false);
+          reconnectTimer = setTimeout(connectSSE, 2000);
         }
       };
     };
