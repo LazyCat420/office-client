@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { TelemetryProvider } from '@/features/telemetry/telemetryStore';
 import { useTelemetry } from '@/features/telemetry/useTelemetry';
@@ -36,7 +36,7 @@ function OfficeApp() {
       if (stored !== null) {
         setIsMuted(stored === 'true');
       }
-    } catch (e) {}
+    } catch (localStorageError) {}
   }, []);
 
   // Initialize SoundManager on first user interaction (browsers require user gesture)
@@ -61,7 +61,7 @@ function OfficeApp() {
 
     try {
       localStorage.setItem('office-audioMutedV1', String(isMuted));
-    } catch (e) {}
+    } catch (localStorageError) {}
 
     soundManager.setMute(isMuted);
     if (!isMuted) {
@@ -85,9 +85,9 @@ function OfficeApp() {
       : '⚫ Idle';
 
   return (
-    <div className="office-shell">
+    <main className="office-shell">
       {/* ── Toolbar ─────────────────────────────────── */}
-      <div className="office-toolbar">
+      <header className="office-toolbar">
         <div className="office-toolbar-title">
           <span>🏢</span>
           <span>Agent Office</span>
@@ -97,22 +97,24 @@ function OfficeApp() {
         <div className="office-toolbar-actions">
           <button
             className={`toolbar-btn ${showDataGrid ? 'active' : ''}`}
-            onClick={() => setShowDataGrid(prev => !prev)}
+            onClick={() => setShowDataGrid(previousState => !previousState)}
+            aria-pressed={showDataGrid}
             style={{ marginRight: 8, padding: '4px 12px', borderRadius: 4, background: showDataGrid ? 'rgba(56,189,248,0.2)' : 'rgba(255,255,255,0.05)', border: `1px solid ${showDataGrid ? '#38bdf8' : 'transparent'}`, color: showDataGrid ? '#38bdf8' : '#e2e8f0', cursor: 'pointer' }}
           >
             📊 Data Grid
           </button>
           <button
             className={`mute-btn ${!isMuted ? 'unmuted' : ''}`}
-            onClick={() => setIsMuted(prev => !prev)}
+            onClick={() => setIsMuted(previousMuteState => !previousMuteState)}
+            aria-pressed={!isMuted}
           >
             {isMuted ? '🔇 Muted' : '🔊 Audio On'}
           </button>
         </div>
-      </div>
+      </header>
 
       {/* ── Content ─────────────────────────────────── */}
-      <div className="office-content" style={{ position: 'relative' }}>
+      <section className="office-content" style={{ position: 'relative' }}>
         {/* Main 3D Office */}
         <div className="office-main">
           <ErrorBoundary>
@@ -127,8 +129,8 @@ function OfficeApp() {
 
         {/* Data Grid Overlay */}
         <AgentGridPanel visible={showDataGrid} />
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }
 

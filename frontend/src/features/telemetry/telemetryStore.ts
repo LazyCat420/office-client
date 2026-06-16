@@ -3,75 +3,110 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import * as api from '@/lib/api';
 
+export interface CycleEvent {
+  ts: number | string;
+  phase: string;
+  step?: string;
+  detail?: string;
+  status: string;
+  data?: Record<string, unknown> | null;
+  elapsed_ms?: number;
+  [key: string]: unknown;
+}
+
+export interface CycleResult {
+  ticker?: string;
+  decision?: string;
+  confidence?: number;
+  reasoning?: string;
+  [key: string]: unknown;
+}
+
+export interface CycleStatus {
+  cycle_id?: string;
+  status: string;
+  phase?: string;
+  events?: CycleEvent[];
+  results?: CycleResult[];
+  [key: string]: unknown;
+}
+
 export interface TelemetryContextType {
-  currentCycle: any;
-  eventsByCycle: Record<string, any[]>;
-  refreshCycleStatus: () => Promise<any>;
+  currentCycle: CycleStatus | null;
+  eventsByCycle: Record<string, CycleEvent[]>;
+  refreshCycleStatus: () => Promise<CycleStatus | undefined>;
 }
 
 export const TelemetryContext = createContext<TelemetryContextType | null>(null);
 
 export function TelemetryProvider({ children }: { children: React.ReactNode }) {
-  const [currentCycle, setCurrentCycle] = useState<any>(null);
-  const [eventsByCycle, setEventsByCycle] = useState<Record<string, any[]>>({});
+  const [currentCycle, setCurrentCycle] = useState<CycleStatus | null>(null);
+  const [eventsByCycle, setEventsByCycle] = useState<Record<string, CycleEvent[]>>({});
 
-  const updateCycleState = useCallback((s: any) => {
-    if (!s) return;
+  const updateCycleState = useCallback((cycleState: CycleStatus) => {
+    if (!cycleState) return;
 
-    let resolvedEvents: any[] = s.events || [];
-    let resolvedResults: any[] = s.results || [];
+    let resolvedEvents: CycleEvent[] = cycleState.events || [];
+    let resolvedResults: CycleResult[] = cycleState.results || [];
 
-    setCurrentCycle((prev: any) => {
-      if (prev && prev.cycle_id && prev.cycle_id === s.cycle_id) {
-        const hasOldEvents = prev.events && prev.events.length > 0;
-        const hasNewEvents = s.events && s.events.length > 0;
-        const hasOldResults = prev.results && prev.results.length > 0;
-        const hasNewResults = s.results && s.results.length > 0;
+    setCurrentCycle((previousCycle) => {
+      if (previousCycle && previousCycle.cycle_id && previousCycle.cycle_id === cycleState.cycle_id) {
+        const hasOldEvents = previousCycle.events && previousCycle.events.length > 0;
+        const hasNewEvents = cycleState.events && cycleState.events.length > 0;
+        const hasOldResults = previousCycle.results && previousCycle.results.length > 0;
+        const hasNewResults = cycleState.results && cycleState.results.length > 0;
 
         if (hasOldEvents && hasNewEvents) {
           // Prefer newer payload when same or greater length (may have updated statuses)
-          resolvedEvents = s.events.length >= prev.events.length ? s.events : prev.events;
+          resolvedEvents = (cycleState.events && previousCycle.events && cycleState.events.length >= previousCycle.events.length)
+            ? cycleState.events
+            : (previousCycle.events || []);
         } else if (hasOldEvents && !hasNewEvents) {
-          resolvedEvents = prev.events;
+          resolvedEvents = previousCycle.events || [];
         }
+
         if (hasOldResults && hasNewResults) {
-          resolvedResults = s.results.length >= prev.results.length ? s.results : prev.results;
+          resolvedResults = (cycleState.results && previousCycle.results && cycleState.results.length >= previousCycle.results.length)
+            ? cycleState.results
+            : (previousCycle.results || []);
         } else if (hasOldResults && !hasNewResults) {
-          resolvedResults = prev.results;
+          resolvedResults = previousCycle.results || [];
         }
       }
-      return { ...s, events: resolvedEvents, results: resolvedResults };
+      return { ...cycleState, events: resolvedEvents, results: resolvedResults };
     });
 
-    if (s.cycle_id) {
-      setEventsByCycle((prev) => {
-        const next = { ...prev };
-        const oldEvents = next[s.cycle_id] || [];
-        const finalEvents = (s.events && Array.isArray(s.events) && s.events.length >= oldEvents.length) ? s.events : oldEvents;
-        next[s.cycle_id] = finalEvents;
+    if (cycleState.cycle_id) {
+      setEventsByCycle((previousEvents) => {
+        const nextEventsMap = { ...previousEvents };
+        const oldEvents = nextEventsMap[cycleState.cycle_id!] || [];
+        const finalEvents = (cycleState.events && Array.isArray(cycleState.events) && cycleState.events.length >= oldEvents.length)
+          ? cycleState.events
+          : oldEvents;
+        nextEventsMap[cycleState.cycle_id!] = finalEvents;
 
         // Keep at most 5 cycles to prevent unbounded memory growth
-        const keys = Object.keys(next);
-        if (keys.length > 5) {
-          const oldestKey = keys.find(k => k !== s.cycle_id);
+        const cycleKeys = Object.keys(nextEventsMap);
+        if (cycleKeys.length > 5) {
+          const oldestKey = cycleKeys.find(key => key !== cycleState.cycle_id);
           if (oldestKey) {
-            delete next[oldestKey];
+            delete nextEventsMap[oldestKey];
           }
         }
-        return next;
+        return nextEventsMap;
       });
     }
   }, []);
 
   const loadCycleStatus = useCallback(async (summaryOnly = false) => {
     try {
-      const s = await api.getCycleStatus(summaryOnly);
-      if (s && s.status !== 'Backend unreachable') {
-        updateCycleState(s);
+      const cycleState = await api.getCycleStatus(summaryOnly) as CycleStatus | null;
+      if (cycleState && cycleState.status !== 'Backend unreachable') {
+        updateCycleState(cycleState);
       }
-      return s;
-    } catch (e) {
-      console.warn('[TelemetryStore] Failed to load cycle status:', e);
+      return cycleState;
+    } catch (fetchError: unknown) {
+      console.warn('[TelemetryStore] Failed to load cycle status:', fetchError);
     }
   }, [updateCycleState]);
 
@@ -80,8 +115,8 @@ export function TelemetryProvider({ children }: { children: React.ReactNode }) {
     loadCycleStatus(false);
 
     let isSubscribed = true;
-    let es: EventSource | null = null;
-    let reconnectTimer: any = null;
+    let eventSourceInstance: EventSource | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let isSSEActive = false;
 
     // Heartbeat: poll every 10s as fallback for missed SSE events.
@@ -96,25 +131,25 @@ export function TelemetryProvider({ children }: { children: React.ReactNode }) {
     const connectSSE = () => {
       if (!isSubscribed) return;
 
-      es = new EventSource('/api/v1/run-cycle/status/stream');
+      eventSourceInstance = new EventSource('/api/v1/run-cycle/status/stream');
 
-      es.onmessage = (event) => {
+      eventSourceInstance.onmessage = (event: MessageEvent) => {
         if (!isSubscribed) return;
         isSSEActive = true;
         try {
-          const s = JSON.parse(event.data);
-          if (s && s.status !== 'Backend unreachable') {
-            updateCycleState(s);
+          const cycleData = JSON.parse(event.data) as CycleStatus;
+          if (cycleData && cycleData.status !== 'Backend unreachable') {
+            updateCycleState(cycleData);
           }
-        } catch (err) {
-          console.error('[TelemetryStore] Failed to parse cycle status stream:', err);
+        } catch (parseError: unknown) {
+          console.error('[TelemetryStore] Failed to parse cycle status stream:', parseError);
         }
       };
 
-      es.onerror = (error) => {
-        console.error('[TelemetryStore] Cycle status stream error, reconnecting...', error);
+      eventSourceInstance.onerror = (errorEvent: Event) => {
+        console.error('[TelemetryStore] Cycle status stream error, reconnecting...', errorEvent);
         isSSEActive = false;
-        if (es) es.close();
+        if (eventSourceInstance) eventSourceInstance.close();
         if (isSubscribed) {
           // Immediate full fetch to bridge the SSE gap
           loadCycleStatus(false);
@@ -127,14 +162,14 @@ export function TelemetryProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       isSubscribed = false;
-      if (es) es.close();
+      if (eventSourceInstance) eventSourceInstance.close();
       if (reconnectTimer) clearTimeout(reconnectTimer);
       clearInterval(heartbeatInterval);
     };
   }, [loadCycleStatus, updateCycleState]);
 
   const refreshCycleStatus = useCallback(() => {
-    return loadCycleStatus(false);
+    return loadCycleStatus(false) as Promise<CycleStatus | undefined>;
   }, [loadCycleStatus]);
 
   const value = {
