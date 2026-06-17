@@ -54,11 +54,11 @@ const STEP_KEYWORDS_TO_STATION = [
   // Most specific first
   { keywords: ['fundamental', 'technical', 'price', 'crypto', 'news', 'reddit', 'youtube', 'completeness', 'scrape', 'fetch', 'search'], station: 'research' },
   { keywords: ['janitor', 'purge', 'cleanup', 'tool', 'api'], station: 'tool_bench' },
-  { keywords: ['debate', 'consensus', 'compare', 'vote', 'bull', 'bear'], station: 'debate' },
-  { keywords: ['trade', 'order', 'execute', 'decision', 'recommend', 'envelope'], station: 'inbox' },
+  { keywords: ['debate', 'consensus', 'compare', 'vote', 'bull', 'bear', 'v2_team_findings'], station: 'debate' },
+  { keywords: ['trade', 'order', 'execute', 'decision', 'recommend', 'envelope', 'v2_position'], station: 'inbox' },
   { keywords: ['risk', 'veto', 'pre_trade'], station: 'error' },
   // Generic fallback — lowest priority
-  { keywords: ['analy', 'synth', 'infer', 'llm', 'model', 'prompt', 'generate'], station: 'desk' },
+  { keywords: ['analy', 'synth', 'infer', 'llm', 'model', 'prompt', 'generate', 'v2_orchestrator'], station: 'desk' },
   { keywords: ['error', 'fail', 'retry', 'timeout'], station: 'error' },
 ];
 
@@ -182,7 +182,18 @@ function extractAgentId(event) {
     if (stepLower.includes('bear') || detailLower.includes('bear') || phaseLower.includes('bear')) {
       return 'BEARISH_DEBATER';
     }
+    if (stepLower.includes('team_findings') || detailLower.includes('team_findings')) {
+      return 'TEAM_FINDINGS_AGENT';
+    }
     return 'BULLISH_DEBATER'; // advocate gets mapped to BEARISH_DEBATER/BULLISH_DEBATER via mapEvent below
+  }
+  
+  // 4.5. Orchestrator & Positioning
+  if (stepLower.includes('orchestrator') || detailLower.includes('orchestrator')) {
+    return 'ORCHESTRATOR_AGENT';
+  }
+  if (stepLower.includes('v2_position') || detailLower.includes('v2_position')) {
+    return 'POSITION_AGENT';
   }
   
   // 5. Dynamic Agent Name Matching (for standard pipeline agents)
