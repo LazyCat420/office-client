@@ -66,16 +66,20 @@ export function mapPrismEvent(event, classifyToolStationFn) {
       const agentId = resolvePrismAgentId(data);
       if (!agentId) return [];
 
+      const isGraphExploration = agentId.toLowerCase().includes('_tot') || agentId.toLowerCase().includes('_got');
+      const toolLabel = isGraphExploration ? 'exploring graph' : 'LLM thinking';
+      const animLabel = isGraphExploration ? `${agentId} exploring graph...` : `${agentId} thinking...`;
+      
       // Agent walks to their thinking station (desk = Trading Floor)
-      const station = getStationForAgentOrTool(agentId, 'LLM thinking', classifyToolStationFn, true);
+      const station = getStationForAgentOrTool(agentId, toolLabel, classifyToolStationFn, true);
 
       return [{
         type: `${station}_start`,
         agentId,
         station,
-        tool: 'LLM thinking',
-        toolEmoji: '🧠',
-        label: `${agentId} thinking...`,
+        tool: toolLabel,
+        toolEmoji: isGraphExploration ? '🌳' : '🧠',
+        label: animLabel,
         status: 'start',
         ts,
         meta: {
@@ -122,6 +126,12 @@ export function mapPrismEvent(event, classifyToolStationFn) {
       const agentId = resolvePrismAgentId(data);
       if (!agentId) return [];
 
+      const isGraphExploration = agentId.toLowerCase().includes('_tot') || agentId.toLowerCase().includes('_got');
+      // For ToT/GoT agents, we ignore intermediate tool execution spam so they stay in 'exploring graph' state
+      if (isGraphExploration) {
+        return [];
+      }
+
       const toolName = data.toolName || 'unknown';
       const toolEmoji = data.toolEmoji || null;
 
@@ -155,6 +165,12 @@ export function mapPrismEvent(event, classifyToolStationFn) {
     case 'request.tool_call.completed': {
       const agentId = resolvePrismAgentId(data);
       if (!agentId) return [];
+
+      const isGraphExploration = agentId.toLowerCase().includes('_tot') || agentId.toLowerCase().includes('_got');
+      // For ToT/GoT agents, we ignore intermediate tool execution spam
+      if (isGraphExploration) {
+        return [];
+      }
 
       const toolName = data.toolName || 'unknown';
       const toolEmoji = data.toolEmoji || null;
