@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Canvas, useThree } from '@react-three/fiber';
+import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { MapControls } from '@react-three/drei';
 import { SceneLayout } from './SceneLayout';
@@ -14,7 +14,31 @@ import {
   getHomeStation,
 } from '../agent-office/shared';
 import { initializeAudio, disableAudio } from '../agent-office/audioContextManager';
+import { setGlobalVolume } from '../agent-office/ttsClient';
 import '../agent-office/agentOffice.css';
+
+/**
+ * CameraVolumeSync — Inner component to sync camera distance to global TTS volume
+ */
+function CameraVolumeSync() {
+  const { camera } = useThree();
+  const target = useMemo(() => new THREE.Vector3(0, 0, 0), []);
+  
+  useFrame(() => {
+    // Distance varies between minDistance (5) and maxDistance (150)
+    const dist = camera.position.distanceTo(target);
+    // Let's fade: at dist <= 40, volume is 1.0. At dist >= 120, volume is 0.1
+    const minD = 40;
+    const maxD = 120;
+    let vol = 1.0;
+    if (dist > minD) {
+      vol = 1.0 - ((dist - minD) / (maxD - minD)) * 0.9; 
+    }
+    setGlobalVolume(Math.max(vol, 0.1));
+  });
+  
+  return null;
+}
 
 
 
@@ -410,6 +434,7 @@ export default function AgentOffice3D({ events, status, phase, audioEnabled = fa
               minDistance={5}
               maxDistance={150}
             />
+            <CameraVolumeSync />
             <DragManager
               agents={agents}
               controlsRef={controlsRef}

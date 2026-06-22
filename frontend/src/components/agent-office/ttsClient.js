@@ -8,6 +8,20 @@ const speechQueue = [];
 let isProcessingQueue = false;
 let currentReject = null;
 
+// Track active audio gain nodes to allow real-time camera-based volume fading
+const activeGainNodes = new Set();
+let globalMasterVolume = 1.0;
+
+export function setGlobalVolume(vol) {
+  globalMasterVolume = Math.min(Math.max(vol, 0.0), 1.0);
+  for (const gainNode of activeGainNodes) {
+    if (gainNode && gainNode.gain) {
+      // Smooth fade over 0.1s to avoid popping
+      gainNode.gain.setTargetAtTime(globalMasterVolume, gainNode.context.currentTime, 0.1);
+    }
+  }
+}
+
 // Register cleanup
 onAudioDisabled(() => {
   speechQueue.length = 0;
@@ -175,7 +189,8 @@ export async function executeSpeech({ quote, agent, sceneEl, onProgress, audioPr
       bufferSource.playbackRate.value = customPlaybackRate;
       
       const gainNode = audioCtx.createGain();
-      gainNode.gain.value = volume;
+      gainNode.gain.value = volume * globalMasterVolume;
+      activeGainNodes.add(gainNode);
 
       bufferSource.connect(gainNode);
       gainNode.connect(audioCtx.destination);
@@ -211,6 +226,7 @@ export async function executeSpeech({ quote, agent, sceneEl, onProgress, audioPr
       bufferSource.onended = () => {
         currentReject = null;
         if (wordTimeout) clearTimeout(wordTimeout);
+        activeGainNodes.delete(gainNode);
         if (onProgress) onProgress(cleanText, true);
         resolve();
       };

@@ -36,8 +36,13 @@ export function cleanAgentId(agentName) {
   if (cleanLower === 'fundamental' || cleanLower === 'fundamental_agent') return 'QUANT_RESEARCH_AGENT';
   if (cleanLower === 'behavioral' || cleanLower === 'sentiment_agent') return 'BULLISH_DEBATER';
   if (cleanLower === 'risk') return 'PRE_TRADE_RISK';
-  if (cleanLower === 'pm' || cleanLower === 'portfolio_allocator') return 'PORTFOLIO_ALLOCATOR';
+  if (cleanLower === 'pm' || cleanLower === 'portfolio_allocator' || cleanLower === 'trader') return 'PORTFOLIO_ALLOCATOR';
   if (cleanLower === 'quant') return 'QUANT_RESEARCH_AGENT';
+  
+  if (cleanLower === 'planner') return 'PLANNER';
+  if (cleanLower === 'retriever') return 'RETRIEVER';
+  if (cleanLower === 'verifier') return 'VERIFIER';
+  if (cleanLower === 'synthesizer') return 'SYNTHESIZER';
   
   if (cleanLower.includes('worker_')) {
     const match = clean.match(/(.*)_worker_(\d+)/i);
@@ -65,11 +70,17 @@ export function getHomeStation(agentId, is3D = false) {
   if (idLower.includes('janitor') || idLower.includes('purge')) {
     return is3D ? 'janitor' : 'tool_bench'; // Janitors belong at Janitor Station (3D) or Tool Bench (2D)
   }
-  if (idLower.includes('allocator') || idLower.includes('executor') || idLower.includes('trade_agent')) {
+  if (idLower.includes('allocator') || idLower.includes('executor') || idLower.includes('trade_agent') || idLower.includes('trader') || idLower.includes('synthesizer')) {
     return 'inbox'; // Exec Office
   }
-  if (idLower.includes('research') || idLower.includes('quant') || idLower.includes('technical') || idLower.includes('analysis')) {
+  if (idLower.includes('research') || idLower.includes('quant') || idLower.includes('technical') || idLower.includes('analysis') || idLower.includes('retriever')) {
     return 'research'; // Research Desk
+  }
+  if (idLower.includes('planner')) {
+    return 'desk'; // General Desk
+  }
+  if (idLower.includes('verifier')) {
+    return 'debate'; // Verifier fits well near debaters
   }
   return null;
 }
