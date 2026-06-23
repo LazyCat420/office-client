@@ -102,23 +102,31 @@ export function mapPrismEvent(event, classifyToolStationFn) {
       if (!agentId) return [];
 
       const station = getStationForAgentOrTool(agentId, 'LLM thinking', classifyToolStationFn, true);
-      return [{
-        type: `${station}_progress`,
-        agentId,
-        station,
-        tool: 'LLM thinking',
-        toolEmoji: '🧠',
-        label: `${agentId} finished thinking`,
-        status: 'progress',
-        ts,
-        meta: {
-          source: 'prism',
-          eventType: event.eventType,
-          model: data.model,
-          provider: data.provider,
-          conversationId: data.conversationId,
+      return [
+        {
+          type: `${station}_progress`,
+          agentId,
+          station,
+          tool: 'LLM thinking',
+          toolEmoji: '🧠',
+          label: `${agentId} finished thinking`,
+          status: 'progress',
+          ts,
+          meta: {
+            source: 'prism',
+            eventType: event.eventType,
+            model: data.model,
+            provider: data.provider,
+            conversationId: data.conversationId,
+          },
         },
-      }];
+        {
+          type: 'agent_voice',
+          agentId,
+          quote: '',
+          timestamp: ts,
+        }
+      ];
     }
 
     // ── Tool call started ──
@@ -138,27 +146,35 @@ export function mapPrismEvent(event, classifyToolStationFn) {
       // Classify which room/station this tool belongs in
       const station = getStationForAgentOrTool(agentId, toolName, classifyToolStationFn, true);
 
-      return [{
-        type: `${station}_start`,
-        agentId,
-        station,
-        tool: toolName,
-        toolEmoji,
-        label: `${agentId} executing ${toolName}`,
-        status: 'start',
-        ts,
-        meta: {
-          source: 'prism',
-          eventType: event.eventType,
-          toolCallId: data.toolCallId,
-          toolArgs: data.toolArgs,
-          iteration: data.iteration,
-          model: data.model,
-          provider: data.provider,
-          conversationId: data.conversationId,
-          agentSessionId: data.agentSessionId,
+      return [
+        {
+          type: `${station}_start`,
+          agentId,
+          station,
+          tool: toolName,
+          toolEmoji,
+          label: `${agentId} executing ${toolName}`,
+          status: 'start',
+          ts,
+          meta: {
+            source: 'prism',
+            eventType: event.eventType,
+            toolCallId: data.toolCallId,
+            toolArgs: data.toolArgs,
+            iteration: data.iteration,
+            model: data.model,
+            provider: data.provider,
+            conversationId: data.conversationId,
+            agentSessionId: data.agentSessionId,
+          },
         },
-      }];
+        {
+          type: 'agent_voice',
+          agentId,
+          quote: `Executing tool: ${toolName.replace(/_/g, ' ')}.`,
+          timestamp: ts,
+        }
+      ];
     }
 
     // ── Tool call completed ──

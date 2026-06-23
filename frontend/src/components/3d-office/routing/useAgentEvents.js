@@ -441,6 +441,10 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
           setAgents(prevAgents => {
             let updated = { ...prevAgents };
             for (const oe of officeEvents) {
+              if (oe.type === 'agent_voice') {
+                if (onVoiceEventRef.current) onVoiceEventRef.current(oe);
+                continue;
+              }
               updated = processEvent(updated, oe);
               applyTimers(oe.agentId, updated[oe.agentId]);
             }

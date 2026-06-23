@@ -108,13 +108,15 @@ export default function AgentOffice3D({ events, status, phase, audioEnabled = fa
     if (!cleanId) return; // Skip non-pipeline chat agents
 
     // Dedup: skip if we've already spoken this exact quote for this agent
-    const dedupeKey = `${cleanId}:${event.quote}`;
-    if (seenVoiceQuotesRef.current.has(dedupeKey)) return;
-    seenVoiceQuotesRef.current.add(dedupeKey);
-    // Cap the dedup set to prevent unbounded growth
-    if (seenVoiceQuotesRef.current.size > 100) {
-      const first = seenVoiceQuotesRef.current.values().next().value;
-      seenVoiceQuotesRef.current.delete(first);
+    if (event.quote) {
+      const dedupeKey = `${cleanId}:${event.quote}`;
+      if (seenVoiceQuotesRef.current.has(dedupeKey)) return;
+      seenVoiceQuotesRef.current.add(dedupeKey);
+      // Cap the dedup set to prevent unbounded growth
+      if (seenVoiceQuotesRef.current.size > 100) {
+        const first = seenVoiceQuotesRef.current.values().next().value;
+        seenVoiceQuotesRef.current.delete(first);
+      }
     }
 
     let agent = agentsRef.current[cleanId];
