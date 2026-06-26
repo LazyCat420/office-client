@@ -35,14 +35,14 @@ const nextConfig = {
   // Proxy API requests to trading-service and supporting services
   async rewrites() {
     return [
-      // Agent registry (prism-service port 3031)
+      // Agent registry (trading-service port 8888)
       {
         source: '/api/v1/agents',
-        destination: `http://${defaultHost}:3031/api/v1/agents`,
+        destination: `http://${defaultHost}:8888/api/v1/agents`,
       },
       {
         source: '/api/v1/agents/:path*',
-        destination: `http://${defaultHost}:3031/api/v1/agents/:path*`,
+        destination: `http://${defaultHost}:8888/api/v1/agents/:path*`,
       },
       {
         source: '/api/v1/agent-tools',
