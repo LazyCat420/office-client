@@ -242,18 +242,31 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
           if (log.subsystem !== 'AGENT') return;
           if (!log.message) return;
 
-          const match = log.message.match(/^\[([^\]]+)\]\s+(.*)$/);
-          if (!match) return;
+          let rawAgent = null;
+          let body = log.message;
+          
+          const bracketMatch = log.message.match(/^\[([^\]]+)\]\s+(.*)$/);
+          if (bracketMatch) {
+            rawAgent = bracketMatch[1];
+            body = bracketMatch[2];
+          } else {
+            // Check for V3 format: "🔬 AAPL: V3 quant_analyst starting..."
+            const v3Match = log.message.match(/^(?:🔬|✅|❌|⏰|🛑|💥)\s+[^:]+:\s+V3\s+([^\s]+)\s+(.*)$/);
+            if (v3Match) {
+              rawAgent = v3Match[1];
+              // Keep the whole message as body so we can match emojis easily
+            } else {
+              return; // Unrecognized format
+            }
+          }
 
-          const rawAgent = match[1];
-          const body = match[2];
           const agentId = cleanAgentId(rawAgent);
           if (!agentId) return; // Skip non-pipeline chat agents
           let mappedEvent = null;
 
           const homeStation = getHomeStation(agentId, true);
 
-          if (body.includes('Starting agent execution') || body.includes('Starting local agent loop')) {
+          if (body.includes('Starting agent execution') || body.includes('Starting local agent loop') || body.includes('starting...')) {
             const station = homeStation || 'research';
             mappedEvent = {
               type: `${station}_start`,
@@ -315,20 +328,21 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
               status: 'start',
               ts: Date.now()
             };
-          } else if (body.includes('Finished successfully') || body.includes('Completed local agent loop')) {
+          } else if (body.includes('Finished successfully') || body.includes('Completed local agent loop') || body.includes('✅') || body.includes('❌') || body.includes('⏰') || body.includes('🛑') || body.includes('💥')) {
             const station = homeStation || 'smoke_break';
+            const isError = body.includes('❌') || body.includes('⏰') || body.includes('🛑') || body.includes('💥');
             mappedEvent = {
-              type: `${station}_done`,
+              type: isError ? `${station}_error` : `${station}_done`,
               agentId,
               station,
               tool: null,
-              label: `${agentId} completed run`,
-              status: 'done',
+              label: isError ? `${agentId} failed run` : `${agentId} completed run`,
+              status: isError ? 'error' : 'done',
               ts: Date.now()
             };
 
             // Track completed tasks for smoke break eligibility
-            if (!homeStation) {
+            if (!homeStation && !isError) {
               taskCountRef.current[agentId] = (taskCountRef.current[agentId] || 0) + 1;
               if (taskCountRef.current[agentId] >= SMOKE_BREAK_MIN_TASKS && Math.random() < SMOKE_BREAK_CHANCE) {
                 taskCountRef.current[agentId] = 0;
