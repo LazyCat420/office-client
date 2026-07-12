@@ -7,7 +7,7 @@
  * browser's ReadableStream text decoding.
  */
 
-const TRADING_SERVICE_URL = process.env.TRADING_SERVICE_URL || 'http://10.0.0.16:3031';
+const TRADING_SERVICE_URL = process.env.TRADING_SERVICE_URL;
 
 export const dynamic = 'force-dynamic';
 
