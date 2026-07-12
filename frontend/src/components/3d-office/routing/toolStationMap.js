@@ -31,6 +31,11 @@ export const TOOL_TO_STATION = {
   request_investigation: 'research',
   check_open_investigations: 'research',
   youtube_test_channel: 'research',
+  search_equations: 'research',
+  save_equation: 'research',
+  run_equation: 'research',
+  run_backtest: 'research',
+  get_market_map_data: 'research',
   // Batch event tool names from eventMapper
   price_data: 'research',
   news_fetch: 'research',
@@ -54,6 +59,7 @@ export const TOOL_TO_STATION = {
   calculate_position_size: 'desk',
   calculate_risk_reward: 'desk',
   calculate_portfolio_allocation: 'desk',
+  read_user_notes: 'desk',
   'LLM thinking': 'desk',
   llm_analysis: 'desk',
   synthesis: 'desk',
@@ -77,6 +83,10 @@ export const TOOL_TO_STATION = {
   propose_constitution_amendment: 'debate',
   consensus: 'debate',
   debate: 'debate',
+  whiteboard_write: 'debate',
+  whiteboard_read: 'debate',
+  whiteboard_annotate: 'debate',
+  whiteboard_summarize: 'debate',
 
   // ── Tool Bench (utility, config, schedules, triggers) ──
   create_or_update_schedule: 'tool_bench',
@@ -188,6 +198,11 @@ export const TOOL_TO_ANIM_VARIANT = {
   request_investigation: 3,      // scanning doc
   check_open_investigations: 3,  // scanning doc
   youtube_test_channel: 3,       // scanning doc
+  search_equations: 3,           // scanning doc
+  save_equation: 2,              // flipping book
+  run_equation: 1,               // comparing charts
+  run_backtest: 1,               // comparing charts
+  get_market_map_data: 1,        // comparing charts
   price_data: 1,
   news_fetch: 0,
   reddit_scan: 3,
@@ -213,6 +228,7 @@ export const TOOL_TO_ANIM_VARIANT = {
   add_agent_note: 2,             // hand signals
   get_cycle_context: 4,          // DANCING
   get_cycle_context_all: 4,      // DANCING
+  read_user_notes: 2,            // hand signals
 
   // ── Exec Office ──
   buy_stock: 1,                  // signing (executing order)
@@ -233,6 +249,10 @@ export const TOOL_TO_ANIM_VARIANT = {
   propose_constitution_amendment: 1, // table slam
   consensus: 0,                  // gesturing
   debate: 1,                     // table slam
+  whiteboard_write: 1,           // table slam
+  whiteboard_read: 2,            // pacing
+  whiteboard_annotate: 0,        // gesturing
+  whiteboard_summarize: 0,       // gesturing
 
   // ── Tool Bench ──
   create_or_update_schedule: 1,  // terminal

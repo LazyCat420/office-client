@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { processEvent, arriveAgent, moveAgent, releaseSlot, resetOccupancy, AGENT_STATES, clearBubble } from './stateMachine';
+import { processEvent, arriveAgent, moveAgent, releaseSlot, resetOccupancy, AGENT_STATES, clearBubble, claimSlot } from './stateMachine';
 import { mapEvent, mapPrismEvent, isPrismWebhookEvent } from '../../agent-office/shared';
 import { classifyToolStation } from './toolStationMap';
 import demandTracker from './demandTracker';
@@ -19,6 +19,34 @@ export { cleanAgentId };
 const getStationForAgentOrTool = (agentId, toolName) =>
   sharedGetStationForAgentOrTool(agentId, toolName, classifyToolStation, true);
 
+const PIPELINE_AGENTS = [
+  'DATA_JANITOR',
+  'QUANT_RESEARCH_AGENT',
+  'PRE_TRADE_RISK',
+  'BULLISH_DEBATER',
+  'BEARISH_DEBATER',
+  'PORTFOLIO_ALLOCATOR',
+];
+
+function openSSEWithBackoff(url, onMessage, cancelRef, backoffMs = 1000) {
+  let delay = backoffMs;
+  function connect() {
+    if (cancelRef.current) return;
+    const es = new EventSource(url);
+    es.onmessage = onMessage;
+    es.onerror = () => {
+      es.close();
+      if (!cancelRef.current) {
+        setTimeout(connect, Math.min(delay, 30000));
+        delay = Math.min(delay * 2, 30000);
+      }
+    };
+    es.onopen = () => { delay = backoffMs; }; // reset on success
+    return es;
+  }
+  return connect();
+}
+
 export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
   const [agents, setAgents] = useState({});
   const isRunning = status && !['idle', 'done', 'error', 'stopped', 'interrupted'].includes(status);
@@ -29,7 +57,7 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
   const bubbleTimersRef = useRef({});
   const idleTimerRef = useRef(null);
   const taskCountRef = useRef({}); // Track completed tasks per agent for smoke break
-  const prevStatusRef2 = useRef(status); // For reset guard (separate from cycle-end ref)
+  const resetGuardStatusRef = useRef(status); // For reset guard (separate from cycle-end ref)
 
   // ── Scene mount guard ──
   // On cold remount (hard refresh), the Canvas/DOM isn't ready on the first
@@ -44,7 +72,7 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  const applyTimers = (agentId, agentState) => {
+  const applyTimers = useCallback((agentId, agentState) => {
     if (!agentState) return;
 
     if (walkTimersRef.current[agentId]) {
@@ -80,7 +108,7 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
         delete bubbleTimersRef.current[agentId];
       }, BUBBLE_TIMEOUT_MS);
     }
-  };
+  }, []);
 
   // Cleanup all timers on unmount
   useEffect(() => {
@@ -92,19 +120,11 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
   }, []);
 
   // ── Known pipeline agent roles to pre-seed at their home stations ──
-  const PIPELINE_AGENTS = [
-    'DATA_JANITOR',
-    'QUANT_RESEARCH_AGENT',
-    'PRE_TRADE_RISK',
-    'BULLISH_DEBATER',
-    'BEARISH_DEBATER',
-    'PORTFOLIO_ALLOCATOR',
-  ];
 
   // ── Reset on new cycle (matches 2D AgentOffice pattern) ──
   useEffect(() => {
     if (status === 'idle' || status === 'starting') {
-      if (prevStatusRef2.current !== status) {
+      if (resetGuardStatusRef.current !== status) {
         setAgents({});
         processedCountRef.current = 0;
         resetOccupancy();
@@ -122,7 +142,7 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
 
     // Pre-seed known pipeline agents when a cycle starts so they're
     // visible in the 3D office before any events arrive for them.
-    const wasIdle = ['idle', 'done', 'error', 'stopped', 'interrupted'].includes(prevStatusRef2.current);
+    const wasIdle = ['idle', 'done', 'error', 'stopped', 'interrupted'].includes(resetGuardStatusRef.current);
     const isActive = status && !['idle', 'done', 'error', 'stopped', 'interrupted'].includes(status);
     if (wasIdle && isActive) {
       setAgents(prev => {
@@ -146,7 +166,7 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
       });
     }
 
-    prevStatusRef2.current = status;
+    resetGuardStatusRef.current = status;
   }, [status]);
 
   useEffect(() => {
@@ -230,13 +250,12 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
     // Guard: don't open SSE until the scene has mounted
     if (!mountedRef.current) return;
     let es = null;
-    let cancelled = false;
+    let cancelled = { current: false };
     const url = '/api/v1/system/stream';
     
     try {
-      es = new EventSource(url);
-      es.onmessage = (e) => {
-        if (cancelled) return;
+      es = openSSEWithBackoff(url, (e) => {
+        if (cancelled.current) return;
         try {
           const log = JSON.parse(e.data);
           if (log.subsystem !== 'AGENT') return;
@@ -407,11 +426,11 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
             });
           }
         } catch (err) {}
-      };
+      });
     } catch (err) {}
  
     return () => {
-      cancelled = true;
+      cancelled.current = true;
       if (es) es.close();
     };
   }, [isRunning, sceneMounted]);
@@ -428,14 +447,13 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
     if (!mountedRef.current) return;
 
     let es = null;
-    let cancelled = false;
+    let cancelled = { current: false };
     const prismStreamUrl =
       '/api/v1/prism/stream?events=request.tool_call.started,request.tool_call.completed,generation.started,generation.completed,request.created';
 
     try {
-      es = new EventSource(prismStreamUrl);
-      es.onmessage = (e) => {
-        if (cancelled) return;
+      es = openSSEWithBackoff(prismStreamUrl, (e) => {
+        if (cancelled.current) return;
         try {
           const parsed = JSON.parse(e.data);
 
@@ -467,17 +485,13 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
         } catch (err) {
           // Silently ignore parse errors from non-JSON SSE messages
         }
-      };
-
-      es.onerror = () => {
-        // EventSource auto-reconnects; nothing to do
-      };
+      });
     } catch (err) {
       // SSE construction failed — will not retry automatically
     }
 
     return () => {
-      cancelled = true;
+      cancelled.current = true;
       if (es) es.close();
     };
   }, [sceneMounted]);
@@ -532,18 +546,40 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
             }, WALK_DURATION_MS);
           }
         }
+
+        for (const [id, agent] of Object.entries(updated)) {
+          if (id === 'system') continue;
+          if (!getHomeStation(id, true)) continue; // only home-station agents here
+          if (agent.state === AGENT_STATES.EXITING || agent.state === AGENT_STATES.FIRED) continue;
+
+          const elapsed = now - (agent.lastActionTime || 0);
+          const HOME_AGENT_IDLE_MS = 5 * 60 * 1000; // 5 minutes
+          if (elapsed > HOME_AGENT_IDLE_MS) {
+            // Reset to home, don't delete — they should always exist during a cycle
+            if (isRunning) {
+              const home = getHomeStation(id, true);
+              if (agent.station !== home || agent.state !== AGENT_STATES.IDLE) {
+                releaseSlot(agent.station, agent.slot);
+                const newSlot = claimSlot(home);
+                updated[id] = { ...agent, station: home, state: AGENT_STATES.IDLE, slot: newSlot, lastActionTime: now };
+                changed = true;
+              }
+            }
+          }
+        }
+
         return changed ? updated : prev;
       });
     }, 2000); // Check frequently
     return () => clearInterval(idleTimerRef.current);
   }, []);
 
-  const prevStatusRef = useRef(status);
+  const cycleEndStatusRef = useRef(status);
 
   // When cycle ends — walk everyone to break room for a smoke, don't exit
   useEffect(() => {
     const isDone = status === 'done' || status === 'error';
-    const wasDone = prevStatusRef.current === 'done' || prevStatusRef.current === 'error';
+    const wasDone = cycleEndStatusRef.current === 'done' || cycleEndStatusRef.current === 'error';
 
     if (isDone && !wasDone) {
       setAgents(prev => {
@@ -568,7 +604,7 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
         });
       }, WALK_DURATION_MS + 500);
     }
-    prevStatusRef.current = status;
+    cycleEndStatusRef.current = status;
   }, [status]);
 
   // If the global run status changes to not running, we trigger the idle check

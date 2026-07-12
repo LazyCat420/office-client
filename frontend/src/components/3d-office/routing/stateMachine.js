@@ -349,7 +349,7 @@ function getSafeSlotPosition(stationId, slotIndex, agentId) {
 }
 
 // Unlimited slot claiming — find the next available index for any station
-function claimSlot(stationId) {
+export function claimSlot(stationId) {
   if (!stationOccupancy[stationId]) stationOccupancy[stationId] = new Set();
   let i = 0;
   while (stationOccupancy[stationId].has(i)) i++;
