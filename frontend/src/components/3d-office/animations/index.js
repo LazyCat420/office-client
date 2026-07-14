@@ -6,7 +6,7 @@
  *   import { getAnimation, walkingAnim, STATION_FACING, pickVariant } from './animations';
  */
 
-export { getAnimation } from './registry';
+export { getAnimation, getTalkingAnimation, getGestureAnimation } from './registry';
 export { walkingAnim } from './walk';
 export { STATION_FACING, STATION_ANIM_VARIANTS, pickVariant } from './types';
 
@@ -21,3 +21,5 @@ export { RISK_ANIMS } from './risk';
 export { LOBBY_ANIMS } from './lobby';
 export { SMOKE_ANIMS } from './smoke';
 export { JANITOR_ANIMS } from './janitor';
+export { TALKING_ANIMS } from './talking';
+export { GESTURE_ANIMS } from './gestures';

@@ -63,41 +63,45 @@ function buildObstacles() {
   obs.push({ type: 'circle', x: 0, z: 0, r: 4.0 });
 
   // ── Potted plants around trading floor perimeter ──
+  // Radius 12 matches Stations.jsx (they used to be at 8 here, which pinned
+  // agents at the inner desk ring r=7.5 against invisible obstacles).
   for (let i = 0; i < 4; i++) {
     const a = (i / 4) * 2 * Math.PI + Math.PI / 4;
-    obs.push({ type: 'circle', x: Math.sin(a) * 8, z: Math.cos(a) * 8, r: 0.6 });
+    obs.push({ type: 'circle', x: Math.sin(a) * 12, z: Math.cos(a) * 12, r: 0.6 });
   }
 
   // ── Room furniture (per room) ──
+  // Table half-extents match the visual meshes in Stations.jsx — undersized
+  // boxes let walking agents clip through table edges.
   // 1. Lobby
-  obs.push(roomBox(RA.lobby, 0, 19, 2.0, 0.3));          // reception table
+  obs.push(roomBox(RA.lobby, 0, 19, 2.0, 0.4));          // reception table [4 x 0.8]
   obs.push(roomCircle(RA.lobby, 0, 17.8, 0.35));          // chair
   obs.push(roomBox(RA.lobby, -3, 15.5, 1.2, 0.5));        // couch
   obs.push(roomCircle(RA.lobby, 3.5, 14, 0.5));           // plant
   obs.push(roomCircle(RA.lobby, -3.5, 20, 0.5));          // plant
 
   // 2. Exec Office
-  obs.push(roomBox(RA.inbox, 0, 17.5, 1.6, 0.5));         // desk
+  obs.push(roomBox(RA.inbox, 0, 17.5, 2.0, 0.75));        // desk [4 x 1.5]
   obs.push(roomCircle(RA.inbox, 0, 16, 0.35));             // chair
   obs.push(roomBox(RA.inbox, 0, 14, 1.3, 0.5));            // couch
   obs.push(roomCircle(RA.inbox, 3, 20, 0.5));              // plant
 
   // 3. War Room
-  obs.push(roomBox(RA.debate, 0, 16.5, 1.4, 0.9));         // big table
+  obs.push(roomBox(RA.debate, 0, 16.5, 2.0, 1.25));        // big table [4 x 2.5]
   obs.push(roomCircle(RA.debate, -1.5, 15, 0.35));          // chair
   obs.push(roomCircle(RA.debate, 1.5, 15, 0.35));           // chair
   obs.push(roomCircle(RA.debate, 0, 18.2, 0.35));           // chair
   obs.push(roomCircle(RA.debate, -2.2, 16.5, 0.35));        // chair
 
   // 4. Trading Tools
-  obs.push(roomBox(RA.tool_bench, 0, 17, 1.1, 1.5));        // table
+  obs.push(roomBox(RA.tool_bench, 0, 17, 1.5, 2.0));        // table [3 x 4]
   obs.push(roomCircle(RA.tool_bench, 1.5, 17, 0.35));        // chair
   obs.push(roomCircle(RA.tool_bench, -1.5, 17, 0.35));       // chair
   obs.push(roomBox(RA.tool_bench, 3, 20, 0.4, 0.4));         // server rack
   obs.push(roomBox(RA.tool_bench, -3, 20, 0.4, 0.4));        // server rack
 
   // 5. Research Desk
-  obs.push(roomBox(RA.research, 0, 17, 1.1, 2.2));           // long table
+  obs.push(roomBox(RA.research, 0, 17, 1.5, 2.5));           // long table [3 x 5]
   obs.push(roomCircle(RA.research, 1.5, 17, 0.35));           // chair
   obs.push(roomCircle(RA.research, -1.5, 17, 0.35));          // chair
   obs.push(roomBox(RA.research, 3.5, 20.5, 0.4, 0.4));       // server rack
@@ -105,7 +109,7 @@ function buildObstacles() {
   obs.push(roomCircle(RA.research, 4, 14, 0.5));              // plant
 
   // 6. Risk Management
-  obs.push(roomBox(RA.error, 0, 17, 1.5, 0.5));               // table
+  obs.push(roomBox(RA.error, 0, 17, 2.0, 0.8));               // table [4 x 1.6]
   obs.push(roomCircle(RA.error, 0, 15.5, 0.35));              // chair
   obs.push(roomBox(RA.error, 3, 20, 0.4, 0.4));               // server rack
 
@@ -456,33 +460,16 @@ export function findWaypoints(x1, z1, x2, z2, agentRadius = 0.5) {
  * Pushes away from the nearest obstacle center.
  */
 export function nudgeIfBlocked(x, z, agentRadius = 0.5) {
-  if (!isPointBlocked(x, z, agentRadius)) return { x, z };
-
-  // Find nearest circle obstacle and push away from it
-  let nearestDist = Infinity;
-  let nearestOx = 0;
-  let nearestOz = 0;
-  let nearestR = 0;
-
-  for (const o of OBSTACLES) {
-    if (o.type === 'circle') {
-      const dx = x - o.x;
-      const dz = z - o.z;
-      const dist = Math.sqrt(dx * dx + dz * dz);
-      if (dist < nearestDist) {
-        nearestDist = dist;
-        nearestOx = o.x;
-        nearestOz = o.z;
-        nearestR = o.r;
-      }
-    }
+  // Iteratively resolve penetrations — getCollision handles both circles
+  // and boxes (the old version only knew circles, so table blockages could
+  // return positions that were still inside the table).
+  let px = x;
+  let pz = z;
+  for (let i = 0; i < 8; i++) {
+    const col = getCollision(px, pz, agentRadius + 0.3);
+    if (!col) break;
+    px += col.normal.x * (col.penetration + 0.05);
+    pz += col.normal.z * (col.penetration + 0.05);
   }
-
-  // Push outward from obstacle center
-  const pushDist = nearestR + agentRadius + 0.3;
-  const angle = Math.atan2(x - nearestOx, z - nearestOz);
-  return {
-    x: nearestOx + pushDist * Math.sin(angle),
-    z: nearestOz + pushDist * Math.cos(angle),
-  };
+  return { x: px, z: pz };
 }

@@ -15,7 +15,7 @@ import { AGENT_STATES, getCollision } from '../routing';
 
 export const sharedAgentPositions = new Map();
 export const sharedAgentPositionsList = [];
-import { getAnimation, walkingAnim, STATION_FACING } from '../animations';
+import { getAnimation, getTalkingAnimation, getGestureAnimation, walkingAnim, STATION_FACING } from '../animations';
 import { throwPaper } from '../primitives/PaperManager';
 import * as THREE from 'three';
 
@@ -50,10 +50,10 @@ export function useAnimationLoop(agent, position, refs) {
   const facingRef = useRef(agent.facing !== undefined ? agent.facing : 0);
   const prevPropRef = useRef(null);
 
-  const timeOffset = useMemo(() => {
+  const { timeOffset, idHash } = useMemo(() => {
     let h = 0;
     for (let i = 0; i < agent.id.length; i++) h += agent.id.charCodeAt(i);
-    return (h % 100) * 0.1;
+    return { timeOffset: (h % 100) * 0.1, idHash: h };
   }, [agent.id]);
 
   useEffect(() => {
@@ -85,9 +85,18 @@ export function useAnimationLoop(agent, position, refs) {
 
     const t = state.clock.getElapsedTime() + timeOffset;
 
+    // Reaction gestures and speech gestures override station poses (but never
+    // the walk cycle — a stationary gesture on a sliding agent looks broken).
+    const gestureActive = currentAgent.gesture
+      && currentAgent.gestureUntil && Date.now() < currentAgent.gestureUntil;
+
     let anim;
     if (currentIsWalking) {
       anim = walkingAnim(t);
+    } else if (gestureActive) {
+      anim = getGestureAnimation(currentAgent.gesture, t);
+    } else if (currentAgent.isSpeaking) {
+      anim = getTalkingAnimation(idHash, t);
     } else if (currentIsWorking || currentIsIdle || currentIsError) {
       if (currentAgent.tool === 'janitor' || (currentAgent.id && currentAgent.id.toLowerCase().includes('janitor'))) {
         anim = getAnimation('janitor', 0, t);
@@ -194,17 +203,24 @@ export function useAnimationLoop(agent, position, refs) {
     }
 
     if (!inAir) {
-      const col = getCollision(candX, candZ, agentRadius);
-      if (col) {
-        // 1. Resolve penetration immediately (push position out of obstacle)
-        off.x += col.normal.x * col.penetration;
-        off.z += col.normal.z * col.penetration;
+      // Static furniture collision only applies while walking. Stationary
+      // agents rest at hand-placed spots (chairs, couches, desk sides) that
+      // intentionally overlap furniture collision margins — pushing them out
+      // every frame made them fight the position spring and jitter against
+      // tables instead of settling into their seat.
+      if (currentIsWalking) {
+        const col = getCollision(candX, candZ, agentRadius);
+        if (col) {
+          // 1. Resolve penetration immediately (push position out of obstacle)
+          off.x += col.normal.x * col.penetration;
+          off.z += col.normal.z * col.penetration;
 
-        // 2. Slide physics: cancel velocity directed into the obstacle to prevent jitter
-        const vNormal = vel.x * col.normal.x + vel.z * col.normal.z;
-        if (vNormal < 0) {
-          vel.x -= vNormal * col.normal.x;
-          vel.z -= vNormal * col.normal.z;
+          // 2. Slide physics: cancel velocity directed into the obstacle to prevent jitter
+          const vNormal = vel.x * col.normal.x + vel.z * col.normal.z;
+          if (vNormal < 0) {
+            vel.x -= vNormal * col.normal.x;
+            vel.z -= vNormal * col.normal.z;
+          }
         }
       }
 
@@ -408,7 +424,8 @@ export function useAnimationLoop(agent, position, refs) {
     const prevProp = prevPropRef.current;
     prevPropRef.current = anim.prop;
 
-    if (currentAgent.station === 'research' && prevProp === 'document' && anim.prop === null) {
+    if (currentAgent.station === 'research' && prevProp === 'document' && anim.prop === null
+      && !gestureActive && !currentAgent.isSpeaking) {
       // Trigger throw if we just released the document prop!
       const throwSpeed = 5.0 + Math.random() * 2.0;
       const angle = facingRef.current + (Math.random() - 0.5) * 0.5;
@@ -428,8 +445,12 @@ export function useAnimationLoop(agent, position, refs) {
 
   // ── Determine active handheld prop ──
   const animProp = useMemo(() => {
+    // Hands go free while gesturing or speaking — the talk/reaction poses
+    // read wrong with a sword or document welded to the hand.
+    if (agent.gesture || agent.isSpeaking) return null;
+
     if (!isWorking && !isWalking && !isError && !isIdle) return null;
-    
+
     // Janitor gets broom (by tool name or agent ID)
     if (agent.tool === 'janitor' || (agent.id && agent.id.toLowerCase().includes('janitor'))) {
       return 'broom';
@@ -459,7 +480,7 @@ export function useAnimationLoop(agent, position, refs) {
     }
     const anim = getAnimation(agent.station, agent.animVariant || 0, 0);
     return anim.prop;
-  }, [isWorking, isWalking, isError, isIdle, agent.tool, agent.station, agent.animVariant, agent.id]);
+  }, [isWorking, isWalking, isError, isIdle, agent.tool, agent.station, agent.animVariant, agent.id, agent.gesture, agent.isSpeaking]);
 
   return { animProp };
 }

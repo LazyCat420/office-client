@@ -8,7 +8,7 @@
 // ── Number of animation variants per station ──
 export const STATION_ANIM_VARIANTS = {
   desk: 5,         // yelling bid, throwing tickets, hand signals, jumping, DANCING
-  research: 8,     // shuffling papers, comparing charts, flipping book, scanning doc, writing whiteboard, typing keyboard, talking
+  research: 9,     // shuffling papers, comparing charts, flipping book, scanning doc, writing whiteboard, writing on paper, typing keyboard, talking, throwing papers
   tool_bench: 3,   // hammering, terminal, levers
   debate: 3,       // gesturing, table slam, pacing
   inbox: 3,        // boss lean, signing, phone call

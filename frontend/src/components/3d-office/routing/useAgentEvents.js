@@ -7,6 +7,7 @@ import demandTracker from './demandTracker';
 
 const WALK_DURATION_MS = 15000;
 const BUBBLE_TIMEOUT_MS = 4000;
+const GESTURE_DURATION_MS = 2400; // One-shot reaction gestures (wave/cheer/facepalm)
 const AGENT_EXPIRE_MS = 30000;  // Remove agents after 30s of no events
 const EXIT_DELAY_MS = 3500;
 const EXIT_FADE_MS = 600;
@@ -60,6 +61,7 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
   const walkTimersRef = useRef({});
   const exitTimersRef = useRef({});
   const bubbleTimersRef = useRef({});
+  const gestureTimersRef = useRef({});
   const idleTimerRef = useRef(null);
   const taskCountRef = useRef({}); // Track completed tasks per agent for smoke break
   const resetGuardStatusRef = useRef(status); // For reset guard (separate from cycle-end ref)
@@ -98,6 +100,29 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
     }
     if (agentState.bubbleType === 'error') soundManager.playSC('error', { chance: 0.8 });
     else if (agentState.bubbleType === 'success') soundManager.playSC('success', { chance: 0.4 });
+
+    // ── Reaction gesture — a visible pose for the same transition the bark
+    // announces, so the office reads accurately even between barks.
+    // Stamped directly on the not-yet-committed agent object (we're inside
+    // the setAgents updater), cleared by timer like bubbles.
+    let gesture = null;
+    if (agentState.state === AGENT_STATES.SPAWNING) gesture = 'wave';
+    if (agentState.bubbleType === 'success') gesture = 'cheer';
+    else if (agentState.bubbleType === 'error') gesture = 'facepalm';
+
+    if (gesture && agentState.state !== AGENT_STATES.WALKING) {
+      agentState.gesture = gesture;
+      agentState.gestureUntil = Date.now() + GESTURE_DURATION_MS;
+      if (gestureTimersRef.current[agentId]) clearTimeout(gestureTimersRef.current[agentId]);
+      gestureTimersRef.current[agentId] = setTimeout(() => {
+        setAgents(prev => {
+          if (!prev[agentId] || !prev[agentId].gesture) return prev;
+          const { gesture: _g, gestureUntil: _gu, ...rest } = prev[agentId];
+          return { ...prev, [agentId]: rest };
+        });
+        delete gestureTimersRef.current[agentId];
+      }, GESTURE_DURATION_MS + 100);
+    }
 
     if (walkTimersRef.current[agentId]) {
       clearTimeout(walkTimersRef.current[agentId]);
@@ -140,6 +165,7 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
       for (const timer of Object.values(walkTimersRef.current)) clearTimeout(timer);
       for (const timer of Object.values(exitTimersRef.current)) clearTimeout(timer);
       for (const timer of Object.values(bubbleTimersRef.current)) clearTimeout(timer);
+      for (const timer of Object.values(gestureTimersRef.current)) clearTimeout(timer);
     };
   }, []);
 
@@ -158,9 +184,11 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
         for (const timer of Object.values(walkTimersRef.current)) clearTimeout(timer);
         for (const timer of Object.values(exitTimersRef.current)) clearTimeout(timer);
         for (const timer of Object.values(bubbleTimersRef.current)) clearTimeout(timer);
+        for (const timer of Object.values(gestureTimersRef.current)) clearTimeout(timer);
         walkTimersRef.current = {};
         exitTimersRef.current = {};
         bubbleTimersRef.current = {};
+        gestureTimersRef.current = {};
       }
     }
 
@@ -610,19 +638,35 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
 
     if (isDone && !wasDone) {
       // Cycle finished — celebrate (or lament) before the smoke break.
+      // Everyone cheers/facepalms in place, in sync with the bark, THEN
+      // files out to the break room.
       soundManager.playSC(status === 'done' ? 'success' : 'error');
+      const endGesture = status === 'done' ? 'cheer' : 'facepalm';
       setAgents(prev => {
         const updated = {};
+        const gestureUntil = Date.now() + GESTURE_DURATION_MS;
         for (const [id, agent] of Object.entries(prev)) {
-          if (agent.station !== 'smoke_break') {
-            updated[id] = moveAgent(agent, 'smoke_break', null, 'break', 'done');
-          } else {
-            updated[id] = { ...agent, state: AGENT_STATES.WORKING, station: 'smoke_break' };
-          }
+          updated[id] = agent.state === AGENT_STATES.WALKING
+            ? agent
+            : { ...agent, gesture: endGesture, gestureUntil };
         }
         return updated;
       });
-      // After walk, arrive everyone in break room
+      setTimeout(() => {
+        setAgents(prev => {
+          const updated = {};
+          for (const [id, agent] of Object.entries(prev)) {
+            const { gesture: _g, gestureUntil: _gu, ...rest } = agent;
+            if (agent.station !== 'smoke_break') {
+              updated[id] = moveAgent(rest, 'smoke_break', null, 'break', 'done');
+            } else {
+              updated[id] = { ...rest, state: AGENT_STATES.WORKING, station: 'smoke_break' };
+            }
+          }
+          return updated;
+        });
+      }, GESTURE_DURATION_MS);
+      // After celebration + walk, arrive everyone in break room
       setTimeout(() => {
         setAgents(prev => {
           const updated = {};
@@ -631,7 +675,7 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
           }
           return updated;
         });
-      }, WALK_DURATION_MS + 500);
+      }, GESTURE_DURATION_MS + WALK_DURATION_MS + 500);
     }
     cycleEndStatusRef.current = status;
   }, [status]);

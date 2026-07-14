@@ -95,7 +95,9 @@ export const STATIONS = {
   },
   exit_door: {
     id: 'exit_door', label: 'Exit',
-    x: 0, z: 26,
+    // z=29.5 — past the lobby reception table (world z≈26.5); the old z=26
+    // queue put exiting agents on top of the reception desk.
+    x: 0, z: 29.5,
     width: 4, depth: 2,
     color: '#64748b', icon: '🚪', slots: 20,
     angle: 0,
@@ -283,17 +285,18 @@ const STATION_SPOTS = {
     { x: -12, z: -12, facing: -3 * Math.PI / 4 },
     { x: -15, z: 0, facing: -Math.PI / 2 },
     { x: -12, z: 12, facing: -Math.PI / 4 },
-    { x: 0, z: 3, facing: Math.PI },
-    { x: 3, z: -3, facing: Math.PI / 3 },
-    { x: -3, z: -3, facing: -Math.PI / 3 },
+    // Keep clear of the trading pit (desk r≈2.8, monitors r≈3.2, collision r=4.0)
+    { x: 0, z: 5.5, facing: Math.PI },
+    { x: 4.5, z: -4.5, facing: Math.PI / 3 },
+    { x: -4.5, z: -4.5, facing: -Math.PI / 3 },
   ],
   exit_door: [
-    { x: -1, z: 26, facing: 0 },
-    { x: 0, z: 26, facing: 0 },
-    { x: 1, z: 26, facing: 0 },
-    { x: -1.5, z: 27, facing: 0 },
-    { x: 0, z: 27, facing: 0 },
-    { x: 1.5, z: 27, facing: 0 },
+    { x: -1, z: 29.2, facing: 0 },
+    { x: 0, z: 29.2, facing: 0 },
+    { x: 1, z: 29.2, facing: 0 },
+    { x: -1.5, z: 30.2, facing: 0 },
+    { x: 0, z: 30.2, facing: 0 },
+    { x: 1.5, z: 30.2, facing: 0 },
   ],
   window: [
     { x: 0, z: -31, facing: Math.PI },
