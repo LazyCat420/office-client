@@ -1,6 +1,10 @@
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { createSeededRandom } from '../seededRandom';
+
+// Hoisted scratch object — allocating one per frame churns the GC.
+const dummy = new THREE.Object3D();
 
 /**
  * CloudLayer — Animated volumetric-looking clouds surrounding the skyscraper.
@@ -92,30 +96,31 @@ export function CloudLayer() {
 
   // Pre-compute cloud data (position, size, speed, phase)
   const cloudData = useMemo(() => {
+    const random = createSeededRandom(0xc10d);
     const data = [];
 
     for (const ring of CLOUD_RINGS) {
       for (let i = 0; i < ring.count; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const r = ring.minR + Math.random() * (ring.maxR - ring.minR);
-        const y = ring.minY + Math.random() * (ring.maxY - ring.minY);
-        const size = ring.sizeMin + Math.random() * (ring.sizeMax - ring.sizeMin);
+        const angle = random() * Math.PI * 2;
+        const r = ring.minR + random() * (ring.maxR - ring.minR);
+        const y = ring.minY + random() * (ring.maxY - ring.minY);
+        const size = ring.sizeMin + random() * (ring.sizeMax - ring.sizeMin);
 
         data.push({
           angle,
           radius: r,
           y,
           size,
-          opacity: ring.opacity * (0.6 + Math.random() * 0.4),
+          opacity: ring.opacity * (0.6 + random() * 0.4),
           // Drift speed (radians per second) — very slow rotation
-          driftSpeed: (0.0008 + Math.random() * 0.002) * (Math.random() > 0.5 ? 1 : -1),
+          driftSpeed: (0.0008 + random() * 0.002) * (random() > 0.5 ? 1 : -1),
           // Vertical bob
-          bobSpeed: 0.04 + Math.random() * 0.08,
-          bobAmp: 0.2 + Math.random() * 0.6,
-          bobPhase: Math.random() * Math.PI * 2,
+          bobSpeed: 0.04 + random() * 0.08,
+          bobAmp: 0.2 + random() * 0.6,
+          bobPhase: random() * Math.PI * 2,
           // Constrained Z-rotation so cloud highlight stays on top
-          zRotation: (Math.random() - 0.5) * 0.35, // -10 to +10 degrees
-          aspectRatioOffset: (Math.random() - 0.5) * 0.15,
+          zRotation: (random() - 0.5) * 0.35, // -10 to +10 degrees
+          aspectRatioOffset: (random() - 0.5) * 0.15,
         });
       }
     }
@@ -128,7 +133,6 @@ export function CloudLayer() {
     if (!meshRef.current) return;
 
     const time = state.clock.getElapsedTime();
-    const dummy = new THREE.Object3D();
 
     for (let i = 0; i < cloudData.length; i++) {
       const cloud = cloudData[i];

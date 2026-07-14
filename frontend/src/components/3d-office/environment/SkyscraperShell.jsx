@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import * as THREE from 'three';
 import { RigidBody, CuboidCollider } from '@react-three/rapier';
+import { createSeededRandom } from '../seededRandom';
 
 /**
  * SkyscraperShell — The physical building structure for the 100th floor.
@@ -24,25 +25,26 @@ const MULLION_COUNT_H = 3;  // Horizontal mullion divisions
 function ShatteredGlass({ active }) {
   const shards = useMemo(() => {
     if (!active) return [];
+    const random = createSeededRandom(0x9155);
     const arr = [];
     for (let i = 0; i < 40; i++) {
       // Randomize within the window pane dimensions (width ~4, height ~4)
-      const xOffset = (Math.random() - 0.5) * 4.0;
-      const yOffset = (Math.random() - 0.5) * 4.0;
+      const xOffset = (random() - 0.5) * 4.0;
+      const yOffset = (random() - 0.5) * 4.0;
       
       // Explosion impulse directed outwards (-Z and slightly up)
-      const forceX = (Math.random() - 0.5) * 5;
-      const forceY = Math.random() * 5;
-      const forceZ = -10 - Math.random() * 10;
+      const forceX = (random() - 0.5) * 5;
+      const forceY = random() * 5;
+      const forceZ = -10 - random() * 10;
       
-      const rot = [Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI];
+      const rot = [random() * Math.PI, random() * Math.PI, random() * Math.PI];
       
       arr.push({
         id: i,
         pos: [xOffset, CEILING_Y / 2 + yOffset, -BLDG_R],
         rot,
         force: { x: forceX, y: forceY, z: forceZ },
-        scale: 0.2 + Math.random() * 0.4
+        scale: 0.2 + random() * 0.4
       });
     }
     return arr;

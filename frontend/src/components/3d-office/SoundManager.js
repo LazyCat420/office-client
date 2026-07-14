@@ -5,12 +5,76 @@
  * Exposes a helper to play sounds globally if Web Audio is available.
  */
 
+// ── StarCraft sample library (public/sounds/starcraft/…) ──────────────
+// Category pools; playSC() picks randomly (avoiding immediate repeats) with
+// a per-category cooldown so a busy office stays fun instead of deafening.
+const SC_SOUNDS = {
+  spawn: ['commlink-online', 'channel-open', 'commander', 'delighted-to-sir', 'anytime-you-re-ready'],
+  move: ['affirmative', 'affirmative-sir', 'acknowledged-hq', 'confirm', 'coordinates-received', 'commencing', 'buckle-up'],
+  work: ['all-crews-reporting', 'checklist-protocol-initiated', 'construction', 'ah-thats-the-stuff', 'about-time'],
+  success: ['checklist-completed-sob', 'add-on-complete', 'battle-cruiser-operational', 'ah-yeah', 'absolutely', 'alright-then', 'decisive-action'],
+  debate: ['alright-bring-it-on', 'attack-formation', 'engage', 'and-dispense-some-indiscriminate-justice', 'are-you-going-to-give-me-orders', 'damn-i-m-taking-orders-from-a-pup'],
+  error: ['danger', 'base-is-under-attack', 'additional-supply-depots-required', 'come-again', 'and-now-i-gotta-put-up-with-this-too'],
+  fired: ['death-cry', 'at-what-the-hell-i-need-that-college-mon'],
+  research: ['e-mc-doh-let-me-get-my-notepad', 'doesn-t-take-a-telepath-to-know-what-you', 'cloaking-sfx'],
+  idle: ['are-you-trying-to-get-invited-to-my-next', 'can-i-take-your-order', 'easily-amused'],
+};
+const SC_BASE = '/sounds/starcraft';
+const SC_COOLDOWN_MS = {
+  spawn: 1500, move: 2500, work: 3000, success: 1500, debate: 2000,
+  error: 2000, fired: 500, research: 4000, idle: 8000,
+};
+
 class SoundManager {
   constructor() {
     this.context = null;
     this.sounds = {};
     this.enabled = false;
     this.muted = true;
+    this.scVolume = 0.35;
+    this._scLastPlayed = {}; // category -> timestamp
+    this._scLastIndex = {};  // category -> last pool index (avoid repeats)
+    this._scCache = {};      // url -> HTMLAudioElement template
+  }
+
+  /**
+   * Play a random StarCraft clip from a category.
+   * options.chance   — probability gate (0..1, default 1)
+   * options.volume   — override volume for this play
+   * options.force    — bypass mute (used sparingly, e.g. user-invoked)
+   */
+  playSC(category, { chance = 1, volume, force = false } = {}) {
+    if (typeof window === 'undefined') return;
+    if (!force && this.muted) return;
+    const pool = SC_SOUNDS[category];
+    if (!pool || pool.length === 0) return;
+    if (chance < 1 && Math.random() > chance) return;
+
+    const now = Date.now();
+    const cooldown = SC_COOLDOWN_MS[category] ?? 2000;
+    if (now - (this._scLastPlayed[category] || 0) < cooldown) return;
+    this._scLastPlayed[category] = now;
+
+    let idx = Math.floor(Math.random() * pool.length);
+    if (pool.length > 1 && idx === this._scLastIndex[category]) {
+      idx = (idx + 1) % pool.length;
+    }
+    this._scLastIndex[category] = idx;
+
+    const url = `${SC_BASE}/${category}/${pool[idx]}.mp3`;
+    try {
+      let template = this._scCache[url];
+      if (!template) {
+        template = new Audio(url);
+        template.preload = 'auto';
+        this._scCache[url] = template;
+      }
+      const player = template.cloneNode();
+      player.volume = volume ?? this.scVolume;
+      player.play().catch(() => {}); // autoplay policies — needs a user gesture first
+    } catch {
+      /* sound is never worth crashing the scene */
+    }
   }
 
   init() {

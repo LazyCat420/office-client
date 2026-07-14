@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { processEvent, arriveAgent, moveAgent, releaseSlot, resetOccupancy, AGENT_STATES, clearBubble, claimSlot } from './stateMachine';
 import { mapEvent, mapPrismEvent, isPrismWebhookEvent } from '../../agent-office/shared';
 import { classifyToolStation } from './toolStationMap';
+import { soundManager } from '../SoundManager';
 import demandTracker from './demandTracker';
 
 const WALK_DURATION_MS = 15000;
@@ -50,6 +51,10 @@ function openSSEWithBackoff(url, onMessage, cancelRef, backoffMs = 1000) {
 export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
   const [agents, setAgents] = useState({});
   const isRunning = status && !['idle', 'done', 'error', 'stopped', 'interrupted'].includes(status);
+  // Live mirror for mount-once intervals (the 2s GC below) — capturing
+  // isRunning directly in that closure froze its first-render value.
+  const isRunningRef = useRef(isRunning);
+  useEffect(() => { isRunningRef.current = isRunning; }, [isRunning]);
   
   const processedCountRef = useRef(0);
   const walkTimersRef = useRef({});
@@ -74,6 +79,25 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
 
   const applyTimers = useCallback((agentId, agentState) => {
     if (!agentState) return;
+
+    // ── StarCraft SFX — react to the state transition we just applied.
+    // playSC has per-category cooldowns + probability gates, so a busy
+    // office stays lively without becoming a cacophony.
+    if (agentState.state === AGENT_STATES.SPAWNING) {
+      soundManager.playSC('spawn', { chance: 0.7 });
+    } else if (agentState.state === AGENT_STATES.FIRED) {
+      soundManager.playSC('fired');
+    } else if (agentState.state === AGENT_STATES.WALKING) {
+      if (agentState.targetStation === 'debate') soundManager.playSC('debate', { chance: 0.6 });
+      else if (agentState.targetStation === 'exit_door') soundManager.playSC('idle', { chance: 0.25 });
+      else soundManager.playSC('move', { chance: 0.35 });
+    } else if (agentState.state === AGENT_STATES.WORKING && agentState.station === 'research') {
+      soundManager.playSC('research', { chance: 0.25 });
+    } else if (agentState.state === AGENT_STATES.WORKING) {
+      soundManager.playSC('work', { chance: 0.2 });
+    }
+    if (agentState.bubbleType === 'error') soundManager.playSC('error', { chance: 0.8 });
+    else if (agentState.bubbleType === 'success') soundManager.playSC('success', { chance: 0.4 });
 
     if (walkTimersRef.current[agentId]) {
       clearTimeout(walkTimersRef.current[agentId]);
@@ -243,7 +267,7 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
 
       return updated;
     });
-  }, [events, sceneMounted]);
+  }, [events, sceneMounted, applyTimers]);
 
   useEffect(() => {
     if (!isRunning) return;
@@ -433,7 +457,7 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
       cancelled.current = true;
       if (es) es.close();
     };
-  }, [isRunning, sceneMounted]);
+  }, [isRunning, sceneMounted, applyTimers]);
 
   // ── Prism webhook SSE — always-on, drives agent animations from
   //    prism-service's real-time webhook events (tool calls, generation lifecycle)
@@ -494,7 +518,7 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
       cancelled.current = true;
       if (es) es.close();
     };
-  }, [sceneMounted]);
+  }, [sceneMounted, applyTimers]);
 
   // Auto-expire inactive agents — walk to exit door and then leave the office completely
   useEffect(() => {
@@ -556,7 +580,7 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
           const HOME_AGENT_IDLE_MS = 5 * 60 * 1000; // 5 minutes
           if (elapsed > HOME_AGENT_IDLE_MS) {
             // Reset to home, don't delete — they should always exist during a cycle
-            if (isRunning) {
+            if (isRunningRef.current) {
               const home = getHomeStation(id, true);
               if (agent.station !== home || agent.state !== AGENT_STATES.IDLE) {
                 releaseSlot(agent.station, agent.slot);
@@ -572,6 +596,9 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
       });
     }, 2000); // Check frequently
     return () => clearInterval(idleTimerRef.current);
+    // Mount-once by design: agent state is read via setAgents(prev => …)
+    // and isRunning via isRunningRef, so nothing here goes stale.
+     
   }, []);
 
   const cycleEndStatusRef = useRef(status);
@@ -582,6 +609,8 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
     const wasDone = cycleEndStatusRef.current === 'done' || cycleEndStatusRef.current === 'error';
 
     if (isDone && !wasDone) {
+      // Cycle finished — celebrate (or lament) before the smoke break.
+      soundManager.playSC(status === 'done' ? 'success' : 'error');
       setAgents(prev => {
         const updated = {};
         for (const [id, agent] of Object.entries(prev)) {

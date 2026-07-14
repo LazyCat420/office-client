@@ -7,6 +7,7 @@
  */
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
+import { createSeededRandom } from '../seededRandom';
 
 /**
  * CigaretteSmoke — Dynamic particle system that responds to agent workload.
@@ -19,14 +20,15 @@ function CigaretteSmoke({ intensity = 0.3 }) {
   const refs = useRef([]);
 
   // Generate seeds for all possible particles (stable across renders)
-  const seeds = useMemo(() =>
-    Array.from({ length: maxParticles }, () => ({
-      driftX: (Math.random() - 0.5) * 0.6,
-      driftZ: (Math.random() - 0.5) * 0.6,
-      speed: 0.3 + Math.random() * 0.2,
-      phase: Math.random() * Math.PI * 2,
-    })),
-  []);
+  const seeds = useMemo(() => {
+    const random = createSeededRandom(0x50f7);
+    return Array.from({ length: maxParticles }, () => ({
+      driftX: (random() - 0.5) * 0.6,
+      driftZ: (random() - 0.5) * 0.6,
+      speed: 0.3 + random() * 0.2,
+      phase: random() * Math.PI * 2,
+    }));
+  }, [maxParticles]);
 
   // How many particles to show based on intensity
   const activeCount = Math.round(6 + intensity * 18); // 6–24

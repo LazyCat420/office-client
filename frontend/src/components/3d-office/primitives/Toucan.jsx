@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { createSeededRandom } from '../seededRandom';
 
 /**
  * Toucan — A colorful animated toucan that flies randomly around the office.
@@ -17,21 +18,26 @@ export function Toucan({ glassCupPositions = [], onBreakCup }) {
   const wingLeftRef = useRef();
   const wingRightRef = useRef();
 
-  // Boid-like wandering flight state
-  const state = useRef({
-    x: 0,
-    y: FLY_Y,
-    z: 0,
-    targetX: (Math.random() - 0.5) * 30,
-    targetZ: (Math.random() - 0.5) * 30,
-    angle: 0,
-    pitch: 0,
-    bankAngle: 0,
-    time: 0,
-    phaseTime: 0,
-    nextActionTime: 3 + Math.random() * 5,
-    swoopTargetIdx: -1,
-  });
+  // Boid-like wandering flight state. Initialized lazily inside useFrame so
+  // render stays pure (useRef initializers re-evaluate on every render).
+  const state = useRef(null);
+  if (state.current === null) {
+    const random = createSeededRandom(0x70ca);
+    state.current = {
+      x: 0,
+      y: FLY_Y,
+      z: 0,
+      targetX: (random() - 0.5) * 30,
+      targetZ: (random() - 0.5) * 30,
+      angle: 0,
+      pitch: 0,
+      bankAngle: 0,
+      time: 0,
+      phaseTime: 0,
+      nextActionTime: 3 + random() * 5,
+      swoopTargetIdx: -1,
+    };
+  }
 
   useFrame((_, delta) => {
     if (!groupRef.current) return;

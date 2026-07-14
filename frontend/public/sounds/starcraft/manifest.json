@@ -1,0 +1,63 @@
+{
+  "spawn": [
+    "spawn/commlink-online.mp3",
+    "spawn/channel-open.mp3",
+    "spawn/commander.mp3",
+    "spawn/delighted-to-sir.mp3",
+    "spawn/anytime-you-re-ready.mp3"
+  ],
+  "move": [
+    "move/affirmative.mp3",
+    "move/affirmative-sir.mp3",
+    "move/acknowledged-hq.mp3",
+    "move/confirm.mp3",
+    "move/coordinates-received.mp3",
+    "move/commencing.mp3",
+    "move/buckle-up.mp3"
+  ],
+  "work": [
+    "work/all-crews-reporting.mp3",
+    "work/checklist-protocol-initiated.mp3",
+    "work/construction.mp3",
+    "work/ah-thats-the-stuff.mp3",
+    "work/about-time.mp3"
+  ],
+  "success": [
+    "success/checklist-completed-sob.mp3",
+    "success/add-on-complete.mp3",
+    "success/battle-cruiser-operational.mp3",
+    "success/ah-yeah.mp3",
+    "success/absolutely.mp3",
+    "success/alright-then.mp3",
+    "success/decisive-action.mp3"
+  ],
+  "debate": [
+    "debate/alright-bring-it-on.mp3",
+    "debate/attack-formation.mp3",
+    "debate/engage.mp3",
+    "debate/and-dispense-some-indiscriminate-justice.mp3",
+    "debate/are-you-going-to-give-me-orders.mp3",
+    "debate/damn-i-m-taking-orders-from-a-pup.mp3"
+  ],
+  "error": [
+    "error/danger.mp3",
+    "error/base-is-under-attack.mp3",
+    "error/additional-supply-depots-required.mp3",
+    "error/come-again.mp3",
+    "error/and-now-i-gotta-put-up-with-this-too.mp3"
+  ],
+  "fired": [
+    "fired/death-cry.mp3",
+    "fired/at-what-the-hell-i-need-that-college-mon.mp3"
+  ],
+  "research": [
+    "research/e-mc-doh-let-me-get-my-notepad.mp3",
+    "research/doesn-t-take-a-telepath-to-know-what-you.mp3",
+    "research/cloaking-sfx.mp3"
+  ],
+  "idle": [
+    "idle/are-you-trying-to-get-invited-to-my-next.mp3",
+    "idle/can-i-take-your-order.mp3",
+    "idle/easily-amused.mp3"
+  ]
+}

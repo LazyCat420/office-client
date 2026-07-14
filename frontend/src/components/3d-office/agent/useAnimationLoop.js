@@ -17,6 +17,10 @@ export const sharedAgentPositions = new Map();
 export const sharedAgentPositionsList = [];
 import { getAnimation, walkingAnim, STATION_FACING } from '../animations';
 import { throwPaper } from '../primitives/PaperManager';
+import * as THREE from 'three';
+
+// Hoisted scratch vector for kinematic collider sync (avoid per-frame alloc)
+const _worldPos = new THREE.Vector3();
 
 /**
  * @param {Object} agent — agent state from stateMachine
@@ -72,7 +76,7 @@ export function useAnimationLoop(agent, position, refs) {
   useFrame((state, delta) => {
     const currentAgent = agentRef.current;
     const currentRefs = refsRef.current;
-    const { parentRef, bodyRef, leftArmRef, rightArmRef, leftLegRef, rightLegRef } = currentRefs;
+    const { parentRef, bodyRef, leftArmRef, rightArmRef, leftLegRef, rightLegRef, colliderRef } = currentRefs;
 
     const currentIsWorking = currentAgent.state === AGENT_STATES.WORKING;
     const currentIsWalking = currentAgent.state === AGENT_STATES.WALKING;
@@ -101,6 +105,10 @@ export function useAnimationLoop(agent, position, refs) {
 
     // ── Check Edge Falling and Glass Wall Constraint ──
     const dt = Math.min(delta, 0.1); // cap time-step to prevent physics explosion during tab out
+    // Framerate-independent damping factor: replaces fixed per-frame lerp
+    // constants (which made turn/limb speed depend on FPS). rate ≈ -ln(1-k)·60
+    // reproduces the old feel at 60fps.
+    const dampK = (rate) => 1 - Math.exp(-rate * dt);
     const BLDG_R = 31.5;
     
     // Use candidate position (spring pos + bounce offset) for edge check
@@ -258,8 +266,9 @@ export function useAnimationLoop(agent, position, refs) {
       const wanderAmp = 0.35;
       const wx = Math.sin(t * wanderSpeed1) * Math.cos(t * wanderSpeed2 * 0.7) * wanderAmp;
       const wz = Math.cos(t * wanderSpeed2) * Math.sin(t * wanderSpeed1 * 0.6) * wanderAmp;
-      off.x += (wx - off.x) * 0.002;
-      off.z += (wz - off.z) * 0.002;
+      const wanderK = dampK(0.12);
+      off.x += (wx - off.x) * wanderK;
+      off.z += (wz - off.z) * wanderK;
     }
 
     // 4. Spring restoring force pulling offset back to (0,0)
@@ -315,6 +324,13 @@ export function useAnimationLoop(agent, position, refs) {
     // Apply resolved position to parent ref
     if (parentRef && parentRef.current) {
       parentRef.current.position.set(curX + off.x, off.y || 0, curZ + off.z);
+
+      // Drive the kinematic rapier capsule to the agent's world position so
+      // dynamic bodies (thrown papers, glass shards) collide with agents.
+      if (colliderRef && colliderRef.current) {
+        parentRef.current.getWorldPosition(_worldPos);
+        colliderRef.current.setNextKinematicTranslation(_worldPos);
+      }
     }
 
     // ── Facing interpolation ──
@@ -326,7 +342,7 @@ export function useAnimationLoop(agent, position, refs) {
         let diff = targetAngle - facingRef.current;
         while (diff > Math.PI) diff -= 2 * Math.PI;
         while (diff < -Math.PI) diff += 2 * Math.PI;
-        facingRef.current += diff * 0.15;
+        facingRef.current += diff * dampK(10);
       }
     } else {
       let stationAngle = currentAgent.facing !== undefined
@@ -345,7 +361,7 @@ export function useAnimationLoop(agent, position, refs) {
       let diff = stationAngle - facingRef.current;
       while (diff > Math.PI) diff -= 2 * Math.PI;
       while (diff < -Math.PI) diff += 2 * Math.PI;
-      facingRef.current += diff * 0.15;
+      facingRef.current += diff * dampK(10);
     }
 
     prevNominalPosRef.current = { x: curX, z: curZ };
@@ -366,7 +382,7 @@ export function useAnimationLoop(agent, position, refs) {
     }
 
     // ── Limb lerping ──
-    const lerpSpeed = 0.25;
+    const lerpSpeed = dampK(17);
     const lerpLimb = (limbRef, targetRot, defaultPos, targetPos) => {
       if (limbRef && limbRef.current) {
         if (targetRot) {

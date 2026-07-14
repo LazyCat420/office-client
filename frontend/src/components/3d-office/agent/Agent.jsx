@@ -11,7 +11,7 @@ import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { useSpring } from '@react-spring/three';
 import { useFrame } from '@react-three/fiber';
 import { AGENT_STATES } from '../routing/stateMachine';
-import { STATION_FACING } from '../animations';
+import { RigidBody, CapsuleCollider } from '@react-three/rapier';
 import { soundManager } from '../SoundManager';
 import { AgentVisualRig } from './AgentVisualRig';
 import { useAnimationLoop } from './useAnimationLoop';
@@ -151,8 +151,13 @@ export function Agent({ agent, isSelected, onSelect, onArrive, onStartDrag, isDr
   const rightArmRef = useRef();
 
   // ── Animation loop (delegated) ──
+  // Kinematic rapier body shadowing the agent — gives thrown papers and
+  // glass shards something real to bounce off (agents previously had no
+  // physics presence at all).
+  const colliderRef = useRef(null);
+
   const { animProp } = useAnimationLoop(agent, position, {
-    parentRef, bodyRef, leftArmRef, rightArmRef, leftLegRef, rightLegRef,
+    parentRef, bodyRef, leftArmRef, rightArmRef, leftLegRef, rightLegRef, colliderRef,
   });
 
   const isAtLounge = (agent.station === 'lobby' || agent.station === 'smoke_break') && (!isWalking || agent.targetStation === 'lobby' || agent.targetStation === 'smoke_break');
@@ -180,24 +185,31 @@ export function Agent({ agent, isSelected, onSelect, onArrive, onStartDrag, isDr
   }, [isFired]);
 
   return (
-    <AgentVisualRig
-      agent={agent}
-      isSelected={isSelected}
-      onSelect={onSelect}
-      onStartDrag={onStartDrag}
-      isDragTarget={isDragTarget}
-      isExiting={isExiting}
-      isError={isError}
-      showToolBadge={showToolBadge}
-      animProp={animProp}
-      smokeIntensity={smokeIntensity}
-      parentRef={parentRef}
-      bodyScale={bodyScale}
-      bodyRef={bodyRef}
-      leftArmRef={leftArmRef}
-      rightArmRef={rightArmRef}
-      leftLegRef={leftLegRef}
-      rightLegRef={rightLegRef}
-    />
+    <>
+      {!isExiting && !isFired && (
+        <RigidBody ref={colliderRef} type="kinematicPosition" colliders={false}>
+          <CapsuleCollider args={[0.4, 0.35]} position={[0, 0.75, 0]} />
+        </RigidBody>
+      )}
+      <AgentVisualRig
+        agent={agent}
+        isSelected={isSelected}
+        onSelect={onSelect}
+        onStartDrag={onStartDrag}
+        isDragTarget={isDragTarget}
+        isExiting={isExiting}
+        isError={isError}
+        showToolBadge={showToolBadge}
+        animProp={animProp}
+        smokeIntensity={smokeIntensity}
+        parentRef={parentRef}
+        bodyScale={bodyScale}
+        bodyRef={bodyRef}
+        leftArmRef={leftArmRef}
+        rightArmRef={rightArmRef}
+        leftLegRef={leftLegRef}
+        rightLegRef={rightLegRef}
+      />
+    </>
   );
 }

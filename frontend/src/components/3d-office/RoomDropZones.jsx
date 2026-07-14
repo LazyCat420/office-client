@@ -18,16 +18,10 @@ const DROP_TARGET_ROOMS = [
 
 function RoomDropZone({ roomId, isNearest, dropAllowed, dropError }) {
   const station = STATIONS[roomId];
-  if (!station) return null;
-
   const isHighlighted = isNearest;
-  const color = isHighlighted
-    ? (dropAllowed ? '#10b981' : '#ef4444')
-    : 'rgba(100, 116, 139, 0.3)';
 
-  const glowOpacity = isHighlighted ? 0.35 : 0.08;
-  const ringOpacity = isHighlighted ? 0.8 : 0.2;
-
+  // Hooks must run unconditionally — the missing-station early return
+  // previously sat above them, violating the rules of hooks.
   const meshRef = React.useRef();
   const ringRef = React.useRef();
 
@@ -41,6 +35,15 @@ function RoomDropZone({ roomId, isNearest, dropAllowed, dropError }) {
       meshRef.current.scale.set(1, 1, 1);
     }
   });
+
+  if (!station) return null;
+
+  const color = isHighlighted
+    ? (dropAllowed ? '#10b981' : '#ef4444')
+    : 'rgba(100, 116, 139, 0.3)';
+
+  const glowOpacity = isHighlighted ? 0.35 : 0.08;
+  const ringOpacity = isHighlighted ? 0.8 : 0.2;
 
   return (
     <group position={[station.x, 0.03, station.z]}>

@@ -1,6 +1,10 @@
 import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { createSeededRandom } from '../seededRandom';
+
+// Hoisted scratch object — allocating one per frame churns the GC.
+const dummy = new THREE.Object3D();
 
 /**
  * GlassShards — Instanced glass shard particles that burst outward from a break point.
@@ -27,34 +31,35 @@ export function GlassShards({
   const LIFETIME = 2.5; // seconds before cleanup
 
   const shards = useMemo(() => {
+    const random = createSeededRandom(0x5eed + count);
     const dirVec = new THREE.Vector3(...direction).normalize();
     return Array.from({ length: count }, () => {
       // Random ejection velocity biased toward the direction
       const spread = 0.6;
       const vel = new THREE.Vector3(
-        dirVec.x * (1.5 + Math.random() * 2) + (Math.random() - 0.5) * spread * 3,
-        Math.random() * 2.5 + 0.5,
-        dirVec.z * (1.5 + Math.random() * 2) + (Math.random() - 0.5) * spread * 3
+        dirVec.x * (1.5 + random() * 2) + (random() - 0.5) * spread * 3,
+        random() * 2.5 + 0.5,
+        dirVec.z * (1.5 + random() * 2) + (random() - 0.5) * spread * 3
       );
 
       return {
         pos: new THREE.Vector3(
-          (Math.random() - 0.5) * 0.3,
-          (Math.random() - 0.5) * 0.3,
-          (Math.random() - 0.5) * 0.3
+          (random() - 0.5) * 0.3,
+          (random() - 0.5) * 0.3,
+          (random() - 0.5) * 0.3
         ),
         vel,
         rot: new THREE.Euler(
-          Math.random() * Math.PI * 2,
-          Math.random() * Math.PI * 2,
-          Math.random() * Math.PI * 2
+          random() * Math.PI * 2,
+          random() * Math.PI * 2,
+          random() * Math.PI * 2
         ),
         rotSpeed: new THREE.Vector3(
-          (Math.random() - 0.5) * 15,
-          (Math.random() - 0.5) * 15,
-          (Math.random() - 0.5) * 15
+          (random() - 0.5) * 15,
+          (random() - 0.5) * 15,
+          (random() - 0.5) * 15
         ),
-        size: (0.03 + Math.random() * 0.08) * scale,
+        size: (0.03 + random() * 0.08) * scale,
       };
     });
   }, [count, direction, scale]);
@@ -71,7 +76,6 @@ export function GlassShards({
 
     const progress = elapsed.current / LIFETIME;
     const opacity = Math.max(0, 1 - progress * progress);
-    const dummy = new THREE.Object3D();
 
     shards.forEach((shard, i) => {
       // Physics step
