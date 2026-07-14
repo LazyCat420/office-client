@@ -411,6 +411,29 @@ export default function OmniChat({ onCreateAgent, onRefreshRoster, onAgentSaved,
       const controller = new AbortController();
       abortRef.current = controller;
 
+      // Explicit tool scope. Without enabledTools this request fell through
+      // to the OMNI persona's wildcard and the gateway injected its ENTIRE
+      // tool catalog (~229 tools) into the run — the exact context bloat the
+      // trading whitelist exists to prevent. The list is the same trading
+      // toolset the UI already fetched for suggestion mapping, normalized the
+      // way trading-client's stream.py does, plus the discovery meta-tools so
+      // the agent can still pull in extras on demand.
+      const CORE_TOOL_NAMES = ['search_web', 'discover_and_enable_tools', 'enable_tools', 'disable_tools', 'search_tools'];
+      const enabledTools = [
+        ...(availableTools || [])
+          .map(t => t.name)
+          .filter(Boolean)
+          .map(name =>
+            name.startsWith('mcp__') || name.startsWith('domain:') || CORE_TOOL_NAMES.includes(name)
+              ? name
+              : `mcp__lazy-tool-service__${name}`,
+          ),
+        'discover_and_enable_tools',
+        'enable_tools',
+        'disable_tools',
+        'search_tools',
+      ];
+
       const payload = {
         provider: activeProvider,
         model: activeModel,
@@ -420,6 +443,10 @@ export default function OmniChat({ onCreateAgent, onRefreshRoster, onAgentSaved,
           ...history,
         ],
         functionCallingEnabled: true,
+        // Interactive chat: a person is watching the stream, and Qwen-class
+        // models spend most of the turn in the <think> block when this is on.
+        thinkingEnabled: false,
+        enabledTools,
         maxTokens: 16384,
         minContextLength: 128000,
         conversationId,
@@ -430,8 +457,8 @@ export default function OmniChat({ onCreateAgent, onRefreshRoster, onAgentSaved,
         harness: 'standard',
         topology: 'hierarchical',
         autoApprove: true,
-        maxIterations: 25,
-        maxWorkerIterations: 25,
+        maxIterations: 10,
+        maxWorkerIterations: 10,
       };
 
       const response = await fetch('/api/prism-agent', {
