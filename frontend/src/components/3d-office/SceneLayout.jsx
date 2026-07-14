@@ -1,4 +1,4 @@
-import React, { Suspense, useMemo } from 'react';
+import React, { Suspense, useMemo, useEffect } from 'react';
 import * as THREE from 'three';
 import { Environment } from '@react-three/drei';
 import { Physics } from '@react-three/rapier';
@@ -176,7 +176,7 @@ function VisualNodeNetwork({ agents }) {
         if (dist < threshold) {
           list.push({
             id: `${a.id}-${b.id}`,
-            points: [a.pos.clone(), b.pos.clone()],
+            geometry: new THREE.BufferGeometry().setFromPoints([a.pos.clone(), b.pos.clone()]),
             dist
           });
         }
@@ -185,15 +185,20 @@ function VisualNodeNetwork({ agents }) {
     return list;
   }, [agentList]);
 
+  // Dispose replaced/unmounted line geometries — creating them fresh on
+  // every render without disposal leaks GPU buffers as agents move.
+  useEffect(() => {
+    return () => { lines.forEach(l => l.geometry.dispose()); };
+  }, [lines]);
+
   return (
     <group name="visual-node-network">
       {/* Dynamic line connections */}
       {lines.map(line => {
         // Gradient opacity based on distance
         const opacity = Math.max(0.1, 1 - line.dist / 20) * 0.75;
-        const geom = new THREE.BufferGeometry().setFromPoints(line.points);
         return (
-          <line key={line.id} geometry={geom}>
+          <line key={line.id} geometry={line.geometry}>
             <lineBasicMaterial 
               color="#a855f7" 
               transparent 

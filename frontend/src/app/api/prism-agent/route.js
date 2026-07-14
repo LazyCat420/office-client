@@ -7,7 +7,9 @@
  * browser's ReadableStream text decoding.
  */
 
-const TRADING_SERVICE_URL = process.env.TRADING_SERVICE_URL;
+// trading-service (:3031) serves /api/v1/vllm/prism-agent. The env var was
+// previously undefined everywhere, which made this route 502 unconditionally.
+const TRADING_SERVICE_URL = process.env.TRADING_SERVICE_URL || 'http://10.0.0.16:3031';
 
 export const dynamic = 'force-dynamic';
 

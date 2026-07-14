@@ -73,13 +73,6 @@ async function request(path, opts = {}) {
 
 
 // ── Health ──
-export async function getHealth() {
-  try {
-    const res = await fetch('/health');
-    if (!res.ok) return null;
-    return await res.json();
-  } catch { return null; }
-}
 export const getModelHealth = () => request('/models/health');
 export const getModelRoles = () => request('/models/roles');
 
