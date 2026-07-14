@@ -35,14 +35,20 @@ const nextConfig = {
   // Proxy API requests to trading-service and supporting services
   async rewrites() {
     return [
-      // Agent registry (trading-service port 8888)
+      // Agent outputs are served locally by trading-client (:8888); the
+      // rest of the agent registry lives on trading-service (:3031) —
+      // trading-client removed its :8888 double-hop proxy routes for these.
+      {
+        source: '/api/v1/agents/:name/outputs',
+        destination: `http://${defaultHost}:8888/api/v1/agents/:name/outputs`,
+      },
       {
         source: '/api/v1/agents',
-        destination: `http://${defaultHost}:8888/api/v1/agents`,
+        destination: `http://${defaultHost}:3031/api/v1/agents`,
       },
       {
         source: '/api/v1/agents/:path*',
-        destination: `http://${defaultHost}:8888/api/v1/agents/:path*`,
+        destination: `http://${defaultHost}:3031/api/v1/agents/:path*`,
       },
       {
         source: '/api/v1/agent-tools',
