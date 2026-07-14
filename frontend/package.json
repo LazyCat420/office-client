@@ -7,7 +7,8 @@
     "dev": "npm run sync-shared && next dev -p 3035 -H 0.0.0.0",
     "build": "npm run sync-shared && next build",
     "start": "next start -p 3035",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run"
   },
   "dependencies": {
     "@react-spring/three": "^10.1.0",
@@ -25,6 +26,7 @@
   "devDependencies": {
     "eslint": "^9",
     "eslint-config-next": "16.2.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
   }
 }
