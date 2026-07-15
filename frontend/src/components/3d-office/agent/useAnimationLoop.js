@@ -49,6 +49,7 @@ export function useAnimationLoop(agent, position, refs) {
   const prevNominalPosRef = useRef({ x: agent.x || 0, z: agent.z || 0 });
   const facingRef = useRef(agent.facing !== undefined ? agent.facing : 0);
   const prevPropRef = useRef(null);
+  const lastHandoffRef = useRef(0); // throw a hand-off envelope once per agent_done
 
   const { timeOffset, idHash } = useMemo(() => {
     let h = 0;
@@ -455,6 +456,24 @@ export function useAnimationLoop(agent, position, refs) {
       const pY = 1.2;
 
       throwPaper([pX, pY, pZ], [velX, velY, velZ]);
+    }
+
+    // ── Report hand-off — lob a sealed (cream) envelope toward the colleague
+    // this agent reports to. Fired once per agent_done (handoffAt changes), and
+    // aimed at the target's live position so it arcs across the office to them.
+    if (currentAgent.handoffAt && currentAgent.handoffAt !== lastHandoffRef.current) {
+      lastHandoffRef.current = currentAgent.handoffAt;
+      const target = currentAgent.handoffTo && sharedAgentPositions.get(currentAgent.handoffTo);
+      if (target) {
+        const dx = target.x - curX;
+        const dz = target.z - curZ;
+        const dist = Math.hypot(dx, dz) || 1;
+        const speed = Math.max(3, Math.min(dist * 2.2, 8));
+        const velY = 2.4 + Math.random() * 0.6;
+        const pX = curX + off.x + (dx / dist) * 0.4;
+        const pZ = curZ + off.z + (dz / dist) * 0.4;
+        throwPaper([pX, 0.95, pZ], [(dx / dist) * speed, velY, (dz / dist) * speed], { color: '#f5e6c8' });
+      }
     }
   });
 

@@ -151,11 +151,16 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
     let gesture = null;
     let talkingTo = null;
     if (richKind === 'agent_done' && richAgent) {
-      gesture = SEALERS.has(richAgent) ? 'seal' : 'report';
-      // Face the colleague this agent reports to while presenting its work.
+      let target = null;
       if (richTarget) {
-        try { talkingTo = canonicalAgentId(String(richTarget).toUpperCase()); } catch { talkingTo = null; }
+        try { target = canonicalAgentId(String(richTarget).toUpperCase()); } catch { target = null; }
       }
+      // Decision-makers seal a verdict; an agent reporting to a colleague
+      // presents (hands off); a parentless agent just writes its report.
+      if (SEALERS.has(richAgent)) gesture = 'seal';
+      else if (target) gesture = 'present';
+      else gesture = 'report';
+      talkingTo = target; // face the colleague, and lob the envelope to them
     }
     if (!gesture) {
       if (isNew || agentState.state === AGENT_STATES.SPAWNING) gesture = 'wave';
@@ -167,12 +172,18 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
       const duration = GESTURE_DURATIONS[gesture] || GESTURE_DURATION_MS;
       agentState.gesture = gesture;
       agentState.gestureUntil = Date.now() + duration;
-      if (talkingTo) agentState.talkingTo = talkingTo;
+      if (talkingTo) {
+        agentState.talkingTo = talkingTo;
+        // Physics hand-off: the animation loop lobs a cream envelope toward the
+        // target when handoffAt changes (one throw per agent_done).
+        agentState.handoffTo = talkingTo;
+        agentState.handoffAt = Date.now();
+      }
       if (gestureTimersRef.current[agentId]) clearTimeout(gestureTimersRef.current[agentId]);
       gestureTimersRef.current[agentId] = setTimeout(() => {
         setAgents(prev => {
           if (!prev[agentId] || !prev[agentId].gesture) return prev;
-          const { gesture: _g, gestureUntil: _gu, talkingTo: _tt, ...rest } = prev[agentId];
+          const { gesture: _g, gestureUntil: _gu, talkingTo: _tt, handoffTo: _ht, handoffAt: _ha, ...rest } = prev[agentId];
           return { ...prev, [agentId]: rest };
         });
         delete gestureTimersRef.current[agentId];

@@ -6,7 +6,6 @@
 
 import { DESK_ANIMS } from './desk';
 import { RESEARCH_ANIMS } from './research';
-import { THROWING_ANIMS } from './throwing';
 import { TOOLS_ANIMS } from './tools';
 import { DEBATE_ANIMS } from './debate';
 import { EXEC_ANIMS } from './exec';

@@ -4,8 +4,8 @@ import { RigidBody } from '@react-three/rapier';
 // Global event bus for throwing papers
 export const paperEvents = new EventTarget();
 
-export const throwPaper = (position, velocity) => {
-  paperEvents.dispatchEvent(new CustomEvent('throw', { detail: { position, velocity } }));
+export const throwPaper = (position, velocity, opts = {}) => {
+  paperEvents.dispatchEvent(new CustomEvent('throw', { detail: { position, velocity, ...opts } }));
 };
 
 export function PaperManager({ agents }) {
@@ -13,13 +13,14 @@ export function PaperManager({ agents }) {
 
   useEffect(() => {
     const handleThrow = (e) => {
-      const { position, velocity } = e.detail;
+      const { position, velocity, color } = e.detail;
       setPapers((prev) => [
         ...prev.slice(-39), // Keep max 40 thrown papers in the room
         {
           id: Math.random().toString(),
           position,
           velocity,
+          color,        // cream for a report hand-off envelope, white otherwise
           createdAt: Date.now()
         }
       ]);
@@ -31,13 +32,13 @@ export function PaperManager({ agents }) {
   return (
     <group name="thrown-papers">
       {papers.map((p) => (
-        <Paper key={p.id} position={p.position} velocity={p.velocity} />
+        <Paper key={p.id} position={p.position} velocity={p.velocity} color={p.color} />
       ))}
     </group>
   );
 }
 
-function Paper({ position, velocity }) {
+function Paper({ position, velocity, color = '#f8fafc' }) {
   const rigidBody = useRef();
 
   useEffect(() => {
@@ -66,7 +67,7 @@ function Paper({ position, velocity }) {
     >
       <mesh castShadow receiveShadow>
         <boxGeometry args={[0.21, 0.005, 0.297]} /> {/* A4 dimensions approximation */}
-        <meshStandardMaterial color="#f8fafc" roughness={0.9} />
+        <meshStandardMaterial color={color} roughness={0.9} />
       </mesh>
     </RigidBody>
   );
