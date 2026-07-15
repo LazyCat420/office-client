@@ -37,6 +37,7 @@ export function SceneLayout({
   onStartDrag,
   showGrid = false,
   showNetwork = false,
+  celebrate = false,
 }) {
   // When dragging, override the dragged agent's position for visual feedback
   const agentsWithDrag = useMemo(() => {
@@ -115,7 +116,7 @@ export function SceneLayout({
           <DebugNavMesh agents={Object.values(agentsWithDrag)} visible={showNetwork} />
 
           {/* ═══ Interior ═══ */}
-          <Stations />
+          <Stations celebrate={celebrate} />
           <PaperManager agents={agentsWithDrag} />
 
           {/* ═══ Toucan + Breakable Cups ═══ */}

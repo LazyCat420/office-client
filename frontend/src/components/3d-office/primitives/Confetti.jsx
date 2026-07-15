@@ -10,7 +10,7 @@ const dummy = new THREE.Object3D();
  * Confetti — Falling confetti particles using instanced meshes.
  * Celebratory effect for the trading floor.
  */
-export function Confetti() {
+export function Confetti({ active = true }) {
   const count = 150;
   const particles = useMemo(() => {
     const random = createSeededRandom(0xc0ffee);
@@ -39,7 +39,7 @@ export function Confetti() {
   const respawnRandom = useRef(createSeededRandom(0xfa11));
 
   useFrame((state, delta) => {
-    if (!meshRef.current) return;
+    if (!meshRef.current || !active) return;
     // Velocities were tuned per-frame at 60fps — scale by dt so speed is
     // framerate-independent.
     const step = Math.min(delta, 0.1) * 60;
@@ -65,6 +65,10 @@ export function Confetti() {
     });
     meshRef.current.instanceMatrix.needsUpdate = true;
   });
+
+  // Only rain confetti during a celebration window (cycle just completed
+  // successfully); otherwise it fell continuously — even through errors/idle.
+  if (!active) return null;
 
   return (
     <instancedMesh ref={meshRef} args={[null, null, count]} castShadow>

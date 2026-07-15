@@ -22,7 +22,7 @@ describe("mapEvent agent identity", () => {
   it("recognizes the V3 roster agents without _agent/_analyst suffixes", () => {
     const cases = [
       { step: "v3_regime_engine_start_UBER", agentId: "V3_REGIME_ENGINE", station: "research" },
-      { step: "v3_portfolio_manager_done_UBER", agentId: "V3_PORTFOLIO_MANAGER" },
+      { step: "v3_portfolio_manager_done_UBER", agentId: "V3_PORTFOLIO_MANAGER", station: "inbox" },
       { step: "v3_decision_synthesizer_done_UBER", agentId: "V3_DECISION_SYNTHESIZER" },
       { step: "v3_debate_judge_done_UBER", agentId: "V3_DEBATE_JUDGE", station: "debate" },
       { step: "v3_board_of_directors_done_UBER", agentId: "V3_BOARD_OF_DIRECTORS", station: "debate" },
@@ -38,6 +38,22 @@ describe("mapEvent agent identity", () => {
     const events = mapEvent(backendEvent({ step: "v3_debate_judge_done_UBER" }));
     expect(events).toHaveLength(2);
     expect(events[1].agentId).toBe("BEARISH_DEBATER");
+  });
+});
+
+describe("mapEvent V3 tool labels", () => {
+  it("gives each V3 role a distinct tool label instead of collapsing to llm_analysis", () => {
+    const cases = [
+      { step: "v3_regime_engine_start_UBER", tool: "regime_scan" },
+      { step: "v3_junior_analyst_done_UBER", tool: "desk_note" },
+      { step: "v3_quant_analyst_done_UBER", tool: "quant_metrics" },
+      { step: "v3_board_of_directors_done_UBER", tool: "board_review" },
+      { step: "v3_portfolio_manager_done_UBER", tool: "portfolio_review" },
+    ];
+    for (const { step, tool } of cases) {
+      const [event] = mapEvent(backendEvent({ step }));
+      expect(event.tool).toBe(tool);
+    }
   });
 });
 

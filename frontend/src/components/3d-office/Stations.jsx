@@ -406,7 +406,7 @@ function RoomLabels() {
 
 // ── Main Declarative Stations Component ──
 
-export function Stations() {
+export function Stations({ celebrate = false }) {
   return (
     <group>
       {/* Structural Layers */}
@@ -417,7 +417,7 @@ export function Stations() {
 
       {/* Centerpiece & Effects */}
       <TradingPit />
-      <Confetti />
+      <Confetti active={celebrate} />
 
       {/* Perimeter Stations */}
       <LobbyStation />

@@ -22,4 +22,4 @@ export { LOBBY_ANIMS } from './lobby';
 export { SMOKE_ANIMS } from './smoke';
 export { JANITOR_ANIMS } from './janitor';
 export { TALKING_ANIMS } from './talking';
-export { GESTURE_ANIMS } from './gestures';
+export { GESTURE_ANIMS, GESTURE_PROPS, GESTURE_DURATIONS } from './gestures';

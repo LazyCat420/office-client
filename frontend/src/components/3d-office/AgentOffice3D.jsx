@@ -68,6 +68,22 @@ export default function AgentOffice3D({ events, status, phase, audioEnabled = fa
   const [showGrid, setShowGrid] = useState(false);
   const [showNetwork, setShowNetwork] = useState(false);
 
+  // Confetti is gated to a short celebration window after a cycle completes
+  // successfully — previously it rained continuously, even during errors/idle.
+  // Fire only on the transition INTO 'done'; state sets are deferred through
+  // timers so we never setState synchronously inside the effect body.
+  const [celebrate, setCelebrate] = useState(false);
+  const prevStatusRef = useRef(status);
+  useEffect(() => {
+    const prev = prevStatusRef.current;
+    prevStatusRef.current = status;
+    if (status === 'done' && prev !== 'done') {
+      const on = setTimeout(() => setCelebrate(true), 0);
+      const off = setTimeout(() => setCelebrate(false), 8000);
+      return () => { clearTimeout(on); clearTimeout(off); };
+    }
+  }, [status]);
+
   // Persona config cache — maps role → avatar_config
   const personaMapRef = useRef({});
 
@@ -444,14 +460,15 @@ export default function AgentOffice3D({ events, status, phase, audioEnabled = fa
               setDragState={setDragState}
               onDropAgent={handleDropAgent}
             />
-            <SceneLayout 
-              agents={agents} 
-              selectedAgentId={selectedAgentId} 
-              onSelectAgent={setSelectedAgentId} 
+            <SceneLayout
+              agents={agents}
+              selectedAgentId={selectedAgentId}
+              onSelectAgent={setSelectedAgentId}
               onArriveAgent={handleArriveAgent}
               dragState={dragState}
               showGrid={showGrid}
               showNetwork={showNetwork}
+              celebrate={celebrate}
               onStartDrag={(agentId, event) => {
                 const agent = agents[agentId];
                 if (!agent) return;

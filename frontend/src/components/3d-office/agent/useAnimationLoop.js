@@ -15,7 +15,7 @@ import { AGENT_STATES, getCollision } from '../routing';
 
 export const sharedAgentPositions = new Map();
 export const sharedAgentPositionsList = [];
-import { getAnimation, getTalkingAnimation, getGestureAnimation, walkingAnim, STATION_FACING } from '../animations';
+import { getAnimation, getTalkingAnimation, getGestureAnimation, walkingAnim, STATION_FACING, GESTURE_PROPS } from '../animations';
 import { throwPaper } from '../primitives/PaperManager';
 import * as THREE from 'three';
 
@@ -100,6 +100,16 @@ export function useAnimationLoop(agent, position, refs) {
     } else if (currentIsWorking || currentIsIdle || currentIsError) {
       if (currentAgent.tool === 'janitor' || (currentAgent.id && currentAgent.id.toLowerCase().includes('janitor'))) {
         anim = getAnimation('janitor', 0, t);
+      } else if (currentAgent.station === 'debate' && currentAgent.opponentId) {
+        // Two debaters take turns: one thrusts while the other parries, swapping
+        // every beat, so the War Room reads as a real exchange, not two solos.
+        // Uses the SHARED clock (not the per-agent offset t) so the two stay
+        // complementary and their timing lines up (lunge meets block).
+        const sharedT = state.clock.getElapsedTime();
+        const beat = Math.floor(sharedT / 1.8) % 2;
+        const leads = currentAgent.id < currentAgent.opponentId; // stable ordering
+        const variant = (leads === (beat === 0)) ? 0 : 2; // 0 = thrust, 2 = parry
+        anim = getAnimation('debate', variant, sharedT);
       } else {
         anim = getAnimation(currentAgent.station, currentAgent.animVariant || 0, t);
       }
@@ -365,11 +375,16 @@ export function useAnimationLoop(agent, position, refs) {
         ? currentAgent.facing
         : (STATION_FACING[currentAgent.station] || 0);
 
-      if (currentAgent.station === 'debate' && currentAgent.opponentId) {
-        const opponent = sharedAgentPositions.get(currentAgent.opponentId);
-        if (opponent) {
-          const dx = opponent.x - candX;
-          const dz = opponent.z - candZ;
+      // Turn to face a conversation/report target. Generalizes the old
+      // debater-only face-off: any agent with an opponentId (debate) or a
+      // `talkingTo` edge (set from the backend `data.target`, i.e. the agent it
+      // reports to) orients toward that colleague while at station or speaking.
+      const faceTargetId = currentAgent.opponentId || currentAgent.talkingTo;
+      if (faceTargetId && (currentAgent.station === 'debate' || currentAgent.isSpeaking || currentAgent.gesture)) {
+        const target = sharedAgentPositions.get(faceTargetId);
+        if (target) {
+          const dx = target.x - candX;
+          const dz = target.z - candZ;
           stationAngle = Math.atan2(dx, dz);
         }
       }
@@ -445,9 +460,11 @@ export function useAnimationLoop(agent, position, refs) {
 
   // ── Determine active handheld prop ──
   const animProp = useMemo(() => {
-    // Hands go free while gesturing or speaking — the talk/reaction poses
-    // read wrong with a sword or document welded to the hand.
-    if (agent.gesture || agent.isSpeaking) return null;
+    // Paperwork gestures (report/seal/present) keep their document/envelope in
+    // hand; every other gesture and speech frees the hands — a talk/reaction
+    // pose reads wrong with a sword or document welded to the hand.
+    if (agent.gesture) return GESTURE_PROPS[agent.gesture] || null;
+    if (agent.isSpeaking) return null;
 
     if (!isWorking && !isWalking && !isError && !isIdle) return null;
 

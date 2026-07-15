@@ -3,6 +3,7 @@ import { processEvent, arriveAgent, moveAgent, releaseSlot, resetOccupancy, AGEN
 import { mapEvent, mapPrismEvent, isPrismWebhookEvent } from '../../agent-office/shared';
 import { classifyToolStation } from './toolStationMap';
 import { soundManager } from '../SoundManager';
+import { GESTURE_DURATIONS } from '../animations';
 import demandTracker from './demandTracker';
 
 const WALK_DURATION_MS = 15000;
@@ -13,6 +14,23 @@ const EXIT_DELAY_MS = 3500;
 const EXIT_FADE_MS = 600;
 const SMOKE_BREAK_CHANCE = 0.15; // 15% chance of smoke break after completing work
 const SMOKE_BREAK_MIN_TASKS = 3; // Minimum tasks before eligible for smoke break
+
+// Live TTS is throttled so a busy multi-ticker cycle doesn't queue dozens of
+// utterances that lag far behind the visuals.
+const VOICE_MIN_GAP_MS = 2500;
+// Only these agents' final reports are spoken aloud (the decision-makers);
+// worker analysts get animations + barks but stay quiet to avoid a wall of TTS.
+const HIGH_SIGNAL_SPEAKERS = new Set([
+  'v3_board_of_directors',
+  'v3_decision_synthesizer',
+  'v3_regime_engine',
+]);
+// Decision-makers seal their verdict into an envelope; everyone else's
+// agent_done plays the "writing a report" gesture.
+const SEALERS = new Set([
+  'v3_board_of_directors',
+  'v3_decision_synthesizer',
+]);
 
 import { cleanAgentId, canonicalAgentId, getHomeStation, getStationForAgentOrTool as sharedGetStationForAgentOrTool } from '../../agent-office/shared';
 
@@ -82,6 +100,7 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
   const gestureTimersRef = useRef({});
   const idleTimerRef = useRef(null);
   const taskCountRef = useRef({}); // Track completed tasks per agent for smoke break
+  const lastVoiceAtRef = useRef(0); // Throttle live TTS triggers (see emitRichFeedback)
   const resetGuardStatusRef = useRef(status); // For reset guard (separate from cycle-end ref)
 
   // ── Scene mount guard ──
@@ -97,13 +116,16 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  const applyTimers = useCallback((agentId, agentState) => {
+  const applyTimers = useCallback((agentId, agentState, { isNew = false, richKind = null, richAgent = null, richTarget = null } = {}) => {
     if (!agentState) return;
 
     // ── StarCraft SFX — react to the state transition we just applied.
     // playSC has per-category cooldowns + probability gates, so a busy
     // office stays lively without becoming a cacophony.
-    if (agentState.state === AGENT_STATES.SPAWNING) {
+    // `isNew` fires on genuine agent creation: processEvent transitions a
+    // freshly-created agent out of SPAWNING (into WALKING/WORKING) in the same
+    // tick, so keying the spawn bark off the committed state almost never hit.
+    if (isNew || agentState.state === AGENT_STATES.SPAWNING) {
       soundManager.playSC('spawn', { chance: 0.7 });
     } else if (agentState.state === AGENT_STATES.FIRED) {
       soundManager.playSC('fired');
@@ -119,27 +141,42 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
     if (agentState.bubbleType === 'error') soundManager.playSC('error', { chance: 0.8 });
     else if (agentState.bubbleType === 'success') soundManager.playSC('success', { chance: 0.4 });
 
-    // ── Reaction gesture — a visible pose for the same transition the bark
-    // announces, so the office reads accurately even between barks.
-    // Stamped directly on the not-yet-committed agent object (we're inside
-    // the setAgents updater), cleared by timer like bubbles.
+    // ── Gesture — a visible pose for the same transition the bark announces,
+    // so the office reads accurately even between barks. Stamped directly on
+    // the not-yet-committed agent object (we're inside the setAgents updater),
+    // cleared by timer like bubbles.
+    // Structured paperwork gestures (report/seal) take priority over the
+    // reaction gestures; an agent finishing its analysis is literally writing a
+    // report / sealing a verdict, which reads better than a generic cheer.
     let gesture = null;
-    if (agentState.state === AGENT_STATES.SPAWNING) gesture = 'wave';
-    if (agentState.bubbleType === 'success') gesture = 'cheer';
-    else if (agentState.bubbleType === 'error') gesture = 'facepalm';
+    let talkingTo = null;
+    if (richKind === 'agent_done' && richAgent) {
+      gesture = SEALERS.has(richAgent) ? 'seal' : 'report';
+      // Face the colleague this agent reports to while presenting its work.
+      if (richTarget) {
+        try { talkingTo = canonicalAgentId(String(richTarget).toUpperCase()); } catch { talkingTo = null; }
+      }
+    }
+    if (!gesture) {
+      if (isNew || agentState.state === AGENT_STATES.SPAWNING) gesture = 'wave';
+      else if (agentState.bubbleType === 'success') gesture = 'cheer';
+      else if (agentState.bubbleType === 'error') gesture = 'facepalm';
+    }
 
     if (gesture && agentState.state !== AGENT_STATES.WALKING) {
+      const duration = GESTURE_DURATIONS[gesture] || GESTURE_DURATION_MS;
       agentState.gesture = gesture;
-      agentState.gestureUntil = Date.now() + GESTURE_DURATION_MS;
+      agentState.gestureUntil = Date.now() + duration;
+      if (talkingTo) agentState.talkingTo = talkingTo;
       if (gestureTimersRef.current[agentId]) clearTimeout(gestureTimersRef.current[agentId]);
       gestureTimersRef.current[agentId] = setTimeout(() => {
         setAgents(prev => {
           if (!prev[agentId] || !prev[agentId].gesture) return prev;
-          const { gesture: _g, gestureUntil: _gu, ...rest } = prev[agentId];
+          const { gesture: _g, gestureUntil: _gu, talkingTo: _tt, ...rest } = prev[agentId];
           return { ...prev, [agentId]: rest };
         });
         delete gestureTimersRef.current[agentId];
-      }, GESTURE_DURATION_MS + 100);
+      }, duration + 100);
     }
 
     if (walkTimersRef.current[agentId]) {
@@ -176,6 +213,54 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
       }, BUBBLE_TIMEOUT_MS);
     }
   }, []);
+
+  // ── Live voice + SFX for Phase-1 structured events ──
+  // The polled feed now carries the backend's `data.kind` payloads (agent_done,
+  // debate_*, board_convened). Turn the high-signal ones into spoken TTS lines
+  // (via the same onVoiceEvent path the dead prism SSE used to feed) plus extra
+  // StarCraft barks for debate/board beats. This is what makes agents "talk".
+  const emitRichFeedback = useCallback((rawEvent, primaryOe) => {
+    const data = rawEvent?.data;
+    if (!data || !data.kind || !primaryOe) return;
+    const kind = data.kind;
+
+    // Only the live tail should react — a historical replay batch stays silent.
+    const evTs = rawEvent.ts ? Date.parse(rawEvent.ts) : Date.now();
+    if (Date.now() - evTs > 30000) return;
+
+    // Extra StarCraft barks for the debate/board choreography.
+    if (kind === 'debate_vote') soundManager.playSC('debate', { chance: 0.4 });
+    else if (kind === 'debate_clash') soundManager.playSC('debate', { chance: 0.7 });
+    else if (kind === 'debate_verdict') soundManager.playSC(data.vetoed ? 'error' : 'success', { chance: 0.6 });
+    else if (kind === 'board_convened') soundManager.playSC('work', { chance: 0.5 });
+
+    // Spoken TTS — decision-makers only, throttled so the queue never backs up.
+    if (!onVoiceEvent) return;
+    let agentId = null;
+    let quote = null;
+    const ticker = data.ticker || '';
+    if (kind === 'agent_done' && HIGH_SIGNAL_SPEAKERS.has(data.agent) && data.summary) {
+      agentId = primaryOe.agentId;
+      quote = data.summary;
+    } else if (kind === 'debate_verdict') {
+      agentId = 'V3_DEBATE_JUDGE';
+      quote = data.vetoed
+        ? `${ticker}: the jury has vetoed. Trade blocked for excessive risk.`
+        : `${ticker}: verdict is ${data.action} at ${data.confidence} percent. Winner, the ${data.winning_side} case.`;
+    } else if (kind === 'board_convened') {
+      agentId = 'V3_BOARD_OF_DIRECTORS';
+      quote = `Convening the board on ${ticker}${data.persona ? `. Chair: ${data.persona}` : ''}.`;
+    }
+    if (!agentId || !quote) return;
+
+    const now = Date.now();
+    if (now - lastVoiceAtRef.current < VOICE_MIN_GAP_MS) return;
+    lastVoiceAtRef.current = now;
+    // emitRichFeedback runs inside the setAgents updater; handleVoiceEvent calls
+    // setAgents itself, so defer it out of the current update to avoid nesting.
+    const voiceEvent = { type: 'agent_voice', agentId, quote };
+    setTimeout(() => onVoiceEvent(voiceEvent), 0);
+  }, [onVoiceEvent]);
 
   // Cleanup all timers on unmount
   useEffect(() => {
@@ -265,18 +350,54 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
       for (const rawEvent of newEvents) {
         const officeEvents = mapEvent(rawEvent);
         for (const oe of officeEvents) {
+          const isNewAgent = !updated[oe.agentId];
           updated = processEvent(updated, oe);
           // Triage-skipped work must not celebrate — neutralize the success
           // bubble before applyTimers fires barks/cheer gestures off it.
           if (oe.skipped && updated[oe.agentId]?.bubbleType === 'success') {
             updated[oe.agentId] = { ...updated[oe.agentId], bubbleType: 'info' };
           }
-          applyTimers(oe.agentId, updated[oe.agentId]);
+          applyTimers(oe.agentId, updated[oe.agentId], {
+            isNew: isNewAgent,
+            // Structured payload drives paperwork gestures + who-reports-to-whom.
+            richKind: rawEvent.data?.kind,
+            richAgent: rawEvent.data?.agent,
+            richTarget: rawEvent.data?.target,
+          });
           // Feed demand tracker for smart auto-revert
           if (oe.station) {
             demandTracker.recordEvent(oe.station);
           }
         }
+        // Report hand-off: when an agent finishes and reports to a colleague,
+        // that colleague turns to listen (mutual facing = "talking to each other").
+        const rd = rawEvent.data;
+        if (rd && rd.kind === 'agent_done' && rd.target && officeEvents[0]) {
+          let listenerId = null;
+          try { listenerId = canonicalAgentId(String(rd.target).toUpperCase()); } catch { listenerId = null; }
+          const reporterId = officeEvents[0].agentId;
+          if (listenerId && listenerId !== reporterId && updated[listenerId]) {
+            const dur = GESTURE_DURATIONS.listen || GESTURE_DURATION_MS;
+            updated[listenerId] = {
+              ...updated[listenerId],
+              gesture: 'listen',
+              gestureUntil: Date.now() + dur,
+              talkingTo: reporterId,
+            };
+            if (gestureTimersRef.current[listenerId]) clearTimeout(gestureTimersRef.current[listenerId]);
+            gestureTimersRef.current[listenerId] = setTimeout(() => {
+              setAgents(prev => {
+                if (!prev[listenerId] || prev[listenerId].gesture !== 'listen') return prev;
+                const { gesture: _g, gestureUntil: _gu, talkingTo: _tt, ...rest } = prev[listenerId];
+                return { ...prev, [listenerId]: rest };
+              });
+              delete gestureTimersRef.current[listenerId];
+            }, dur + 100);
+          }
+        }
+        // Live voice + SFX from the structured payload — once per raw event so
+        // e.g. a debate verdict speaks a single time, not once per office event.
+        emitRichFeedback(rawEvent, officeEvents[0]);
       }
 
       // Determine if this is a historical batch (all events are older than 30s).
@@ -318,7 +439,7 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
 
       return updated;
     });
-  }, [events, sceneMounted, applyTimers]);
+  }, [events, sceneMounted, applyTimers, emitRichFeedback]);
 
   useEffect(() => {
     if (!isRunning) return;

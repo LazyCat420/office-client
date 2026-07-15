@@ -57,7 +57,7 @@ const STEP_KEYWORDS_TO_STATION = [
   { keywords: ['fundamental', 'technical', 'price', 'crypto', 'news', 'reddit', 'youtube', 'completeness', 'scrape', 'fetch', 'search', 'regime'], station: 'research' },
   { keywords: ['janitor', 'purge', 'cleanup', 'tool', 'api'], station: 'tool_bench' },
   { keywords: ['debate', 'consensus', 'compare', 'vote', 'bull', 'bear', 'v2_team_findings', 'board_of_directors'], station: 'debate' },
-  { keywords: ['trade', 'order', 'execute', 'decision', 'recommend', 'envelope', 'v2_position'], station: 'inbox' },
+  { keywords: ['trade', 'order', 'execute', 'decision', 'recommend', 'envelope', 'v2_position', 'portfolio'], station: 'inbox' },
   { keywords: ['risk', 'veto', 'pre_trade'], station: 'error' },
   // Generic fallback — lowest priority
   { keywords: ['analy', 'synth', 'infer', 'llm', 'model', 'prompt', 'generate', 'v2_orchestrator'], station: 'desk' },
@@ -272,6 +272,15 @@ function extractToolName(event) {
   if (stepLower.includes('technical')) return 'technicals';
   if (stepLower.includes('crypto')) return 'crypto_data';
   if (stepLower.includes('completeness')) return 'data_check';
+  // V3 pipeline roles — checked before the generic 'analy' branch so that
+  // e.g. v3_quant_analyst / v3_junior_analyst get their own label instead of
+  // collapsing to 'llm_analysis'.
+  if (stepLower.includes('regime')) return 'regime_scan';
+  if (stepLower.includes('junior')) return 'desk_note';
+  if (stepLower.includes('quant')) return 'quant_metrics';
+  if (stepLower.includes('board')) return 'board_review';
+  if (stepLower.includes('portfolio')) return 'portfolio_review';
+  if (stepLower.includes('tournament')) return 'debate';
   if (stepLower.includes('analy')) return 'llm_analysis';
   if (stepLower.includes('synth')) return 'synthesis';
   if (stepLower.includes('consensus')) return 'consensus';
