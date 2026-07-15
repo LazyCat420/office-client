@@ -503,14 +503,23 @@ export function processEvent(agents, officeEvent) {
       } else if (status === 'error') {
         animVariant = 0;
       }
-      agent = { 
-        ...agent, 
-        state: nextState, 
-        tool: tool || agent.tool, 
-        toolEmoji: toolEmoji !== undefined ? toolEmoji : agent.toolEmoji, 
-        bubble: tool || agent.tool, 
+      // Keep bubbleType consistent with moveAgent — without this, agents
+      // already at their station never fire success/error reactions.
+      let bubbleType = 'info';
+      if (tool || agent.tool) {
+        if (status === 'error') bubbleType = 'error';
+        else if (status === 'start' || status === 'progress') bubbleType = 'thinking';
+        else if (status === 'done') bubbleType = 'success';
+      }
+      agent = {
+        ...agent,
+        state: nextState,
+        tool: tool || agent.tool,
+        toolEmoji: toolEmoji !== undefined ? toolEmoji : agent.toolEmoji,
+        bubble: tool || agent.tool,
+        bubbleType,
         animVariant,
-        lastActionTime: ts || Date.now() 
+        lastActionTime: ts || Date.now()
       };
     }
     if (station === agent.station) {

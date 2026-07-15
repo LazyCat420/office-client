@@ -14,27 +14,41 @@ const EXIT_FADE_MS = 600;
 const SMOKE_BREAK_CHANCE = 0.15; // 15% chance of smoke break after completing work
 const SMOKE_BREAK_MIN_TASKS = 3; // Minimum tasks before eligible for smoke break
 
-import { cleanAgentId, getHomeStation, getStationForAgentOrTool as sharedGetStationForAgentOrTool } from '../../agent-office/shared';
+import { cleanAgentId, canonicalAgentId, getHomeStation, getStationForAgentOrTool as sharedGetStationForAgentOrTool } from '../../agent-office/shared';
 
 export { cleanAgentId };
 
 const getStationForAgentOrTool = (agentId, toolName) =>
   sharedGetStationForAgentOrTool(agentId, toolName, classifyToolStation, true);
 
+// Canonical ids of the real V3 pipeline roster (see canonicalAgentId).
+// V1 names that receive no events in a V3 cycle (DATA_JANITOR,
+// PRE_TRADE_RISK, PORTFOLIO_ALLOCATOR) were dropped; the debaters still
+// receive events via the bull/bear aliases.
 const PIPELINE_AGENTS = [
-  'DATA_JANITOR',
   'QUANT_RESEARCH_AGENT',
-  'PRE_TRADE_RISK',
+  'V3_QUANT_ANALYST',
+  'V3_JUNIOR_ANALYST',
+  'V3_FUNDAMENTAL_ANALYST',
+  'V3_REGIME_ENGINE',
+  'V3_BOARD_OF_DIRECTORS',
+  'V3_PORTFOLIO_MANAGER',
+  'V3_DECISION_SYNTHESIZER',
+  'V3_DEBATE_JUDGE',
   'BULLISH_DEBATER',
   'BEARISH_DEBATER',
-  'PORTFOLIO_ALLOCATOR',
 ];
 
+// Returns a handle whose close() always closes the CURRENT EventSource —
+// after an error-triggered reconnect the original instance is stale, so
+// callers must not hold a direct EventSource reference.
 function openSSEWithBackoff(url, onMessage, cancelRef, backoffMs = 1000) {
   let delay = backoffMs;
+  let currentEs = null;
   function connect() {
     if (cancelRef.current) return;
     const es = new EventSource(url);
+    currentEs = es;
     es.onmessage = onMessage;
     es.onerror = () => {
       es.close();
@@ -44,9 +58,13 @@ function openSSEWithBackoff(url, onMessage, cancelRef, backoffMs = 1000) {
       }
     };
     es.onopen = () => { delay = backoffMs; }; // reset on success
-    return es;
   }
-  return connect();
+  connect();
+  return {
+    close() {
+      if (currentEs) currentEs.close();
+    },
+  };
 }
 
 export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
@@ -248,6 +266,11 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
         const officeEvents = mapEvent(rawEvent);
         for (const oe of officeEvents) {
           updated = processEvent(updated, oe);
+          // Triage-skipped work must not celebrate — neutralize the success
+          // bubble before applyTimers fires barks/cheer gestures off it.
+          if (oe.skipped && updated[oe.agentId]?.bubbleType === 'success') {
+            updated[oe.agentId] = { ...updated[oe.agentId], bubbleType: 'info' };
+          }
           applyTimers(oe.agentId, updated[oe.agentId]);
           // Feed demand tracker for smart auto-revert
           if (oe.station) {
@@ -331,7 +354,7 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
             }
           }
 
-          const agentId = cleanAgentId(rawAgent);
+          const agentId = canonicalAgentId(cleanAgentId(rawAgent));
           if (!agentId) return; // Skip non-pipeline chat agents
           let mappedEvent = null;
 
@@ -418,7 +441,7 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
               if (taskCountRef.current[agentId] >= SMOKE_BREAK_MIN_TASKS && Math.random() < SMOKE_BREAK_CHANCE) {
                 taskCountRef.current[agentId] = 0;
                 setTimeout(() => {
-                  if (cancelled) return;
+                  if (cancelled.current) return;
                   setAgents(prevAgents => {
                     let updated = { ...prevAgents };
                     const smokeEvent = { type: 'smoke_break_start', agentId, station: 'smoke_break', tool: 'break', label: `${agentId} taking a break`, status: 'start', ts: Date.now() };
@@ -478,7 +501,7 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
             });
           }
         } catch (err) {}
-      });
+      }, cancelled);
     } catch (err) {}
  
     return () => {
@@ -537,7 +560,7 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
         } catch (err) {
           // Silently ignore parse errors from non-JSON SSE messages
         }
-      });
+      }, cancelled);
     } catch (err) {
       // SSE construction failed — will not retry automatically
     }

@@ -9,6 +9,8 @@
  *   { type, agentId, station, tool, label, status, startedAt, finishedAt, meta }
  */
 
+import { canonicalAgentId } from './agentUtils';
+
 // ── Station classification by phase + step keywords ──
 
 const PHASE_TO_STATION = {
@@ -52,9 +54,9 @@ const PHASE_TO_STATION = {
 
 const STEP_KEYWORDS_TO_STATION = [
   // Most specific first
-  { keywords: ['fundamental', 'technical', 'price', 'crypto', 'news', 'reddit', 'youtube', 'completeness', 'scrape', 'fetch', 'search'], station: 'research' },
+  { keywords: ['fundamental', 'technical', 'price', 'crypto', 'news', 'reddit', 'youtube', 'completeness', 'scrape', 'fetch', 'search', 'regime'], station: 'research' },
   { keywords: ['janitor', 'purge', 'cleanup', 'tool', 'api'], station: 'tool_bench' },
-  { keywords: ['debate', 'consensus', 'compare', 'vote', 'bull', 'bear', 'v2_team_findings'], station: 'debate' },
+  { keywords: ['debate', 'consensus', 'compare', 'vote', 'bull', 'bear', 'v2_team_findings', 'board_of_directors'], station: 'debate' },
   { keywords: ['trade', 'order', 'execute', 'decision', 'recommend', 'envelope', 'v2_position'], station: 'inbox' },
   { keywords: ['risk', 'veto', 'pre_trade'], station: 'error' },
   // Generic fallback — lowest priority
@@ -139,7 +141,23 @@ function extractAgentId(event) {
   const stepLower = (event.step || '').toLowerCase();
   const detailLower = (event.detail || '').toLowerCase();
   const phaseLower = (event.phase || '').toLowerCase();
-  
+
+  // 0. V3 pipeline roster — explicit names that don't end in _agent/_analyst,
+  // so the generic regex below never catches them. Checked first so e.g.
+  // v3_debate_judge isn't swallowed by the debate-station branch.
+  const V3_AGENTS = [
+    'v3_regime_engine',
+    'v3_board_of_directors',
+    'v3_portfolio_manager',
+    'v3_decision_synthesizer',
+    'v3_debate_judge',
+  ];
+  for (const name of V3_AGENTS) {
+    if (stepLower.includes(name) || detailLower.includes(name) || phaseLower.includes(name)) {
+      return name.toUpperCase();
+    }
+  }
+
   // 1. Janitor / Cleanup tasks
   if (
     stepLower.includes('janitor') ||
@@ -290,7 +308,7 @@ export function mapEvent(event) {
     event.data?.data_type || event.data_type,
     event.data?.room || event.room
   );
-  const agentId = extractAgentId(event);
+  const agentId = canonicalAgentId(extractAgentId(event));
   const tool = extractToolName(event);
   const status = mapStatus(event.status);
 
@@ -301,6 +319,9 @@ export function mapEvent(event) {
     tool,
     label: event.detail || event.step || '',
     status,
+    // Triage-skipped work still progresses the lifecycle (status: done) but
+    // must not trigger success cheers/barks downstream.
+    skipped: event.status === 'skipped',
     startedAt: status === 'start' ? Date.parse(event.ts) : null,
     finishedAt: status === 'done' ? Date.parse(event.ts) : null,
     ts: Date.parse(event.ts) || Date.now(),
@@ -315,9 +336,12 @@ export function mapEvent(event) {
     },
   };
 
-  // Debate events spawn a synthetic devil's advocate agent
+  // Debate events spawn a synthetic devil's advocate agent.
+  // Default to BEARISH_DEBATER (matches the system-SSE path) — a synthetic
+  // `${agentId}_adv` clone would leak a phantom agent that keyword-matches a
+  // home station (e.g. V3_DEBATE_JUDGE_adv) and never gets GC'd.
   if (station === 'debate') {
-    let advocateId = `${agentId}_adv`;
+    let advocateId = 'BEARISH_DEBATER';
     if (agentId === 'BULLISH_DEBATER') advocateId = 'BEARISH_DEBATER';
     else if (agentId === 'BEARISH_DEBATER') advocateId = 'BULLISH_DEBATER';
     else if (agentId === 'system') advocateId = 'advocate';

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   cleanAgentId,
+  canonicalAgentId,
   getHomeStation,
   getStationForAgentOrTool,
 } from "../agentUtils";
@@ -47,6 +48,35 @@ describe("cleanAgentId", () => {
   });
 });
 
+describe("canonicalAgentId", () => {
+  it("passes through falsy input", () => {
+    expect(canonicalAgentId(null)).toBeNull();
+    expect(canonicalAgentId("")).toBe("");
+  });
+
+  it("uppercases lowercase ids", () => {
+    expect(canonicalAgentId("v3_junior_analyst")).toBe("V3_JUNIOR_ANALYST");
+  });
+
+  it("strips a leading CUSTOM_ prefix", () => {
+    expect(canonicalAgentId("CUSTOM_V3_JUNIOR_ANALYST")).toBe("V3_JUNIOR_ANALYST");
+  });
+
+  it("collapses a doubled V3_V3_ prefix", () => {
+    expect(canonicalAgentId("V3_V3_JUNIOR_ANALYST")).toBe("V3_JUNIOR_ANALYST");
+    expect(canonicalAgentId("v3_v3_junior_analyst")).toBe("V3_JUNIOR_ANALYST");
+  });
+
+  it("converges all three event-source identities to one key", () => {
+    const polled = canonicalAgentId("V3_V3_JUNIOR_ANALYST");
+    const systemSse = canonicalAgentId(cleanAgentId("v3_junior_analyst"));
+    const prismSse = canonicalAgentId(cleanAgentId("CUSTOM_V3_JUNIOR_ANALYST"));
+    expect(polled).toBe("V3_JUNIOR_ANALYST");
+    expect(systemSse).toBe("V3_JUNIOR_ANALYST");
+    expect(prismSse).toBe("V3_JUNIOR_ANALYST");
+  });
+});
+
 describe("getHomeStation", () => {
   it("routes debaters to the war room", () => {
     expect(getHomeStation("BULLISH_DEBATER")).toBe("debate");
@@ -69,6 +99,17 @@ describe("getHomeStation", () => {
   it("routes research/quant agents to the research desk", () => {
     expect(getHomeStation("QUANT_RESEARCH_AGENT")).toBe("research");
     expect(getHomeStation("RETRIEVER")).toBe("research");
+  });
+
+  it("routes the V3 roster to their home rooms", () => {
+    expect(getHomeStation("V3_QUANT_ANALYST", true)).toBe("research");
+    expect(getHomeStation("V3_JUNIOR_ANALYST", true)).toBe("research");
+    expect(getHomeStation("V3_FUNDAMENTAL_ANALYST", true)).toBe("research");
+    expect(getHomeStation("V3_REGIME_ENGINE", true)).toBe("research");
+    expect(getHomeStation("V3_BOARD_OF_DIRECTORS", true)).toBe("debate");
+    expect(getHomeStation("V3_DEBATE_JUDGE", true)).toBe("debate");
+    expect(getHomeStation("V3_PORTFOLIO_MANAGER", true)).toBe("inbox");
+    expect(getHomeStation("V3_DECISION_SYNTHESIZER", true)).toBe("inbox");
   });
 
   it("returns null for unknown agents", () => {

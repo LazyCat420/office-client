@@ -19,7 +19,7 @@
  * /lego module: Consumed by useAgentEvents.js to drive the 3D office scene.
  */
 
-import { cleanAgentId, getStationForAgentOrTool } from './agentUtils';
+import { cleanAgentId, canonicalAgentId, getStationForAgentOrTool } from './agentUtils';
 
 /**
  * Resolve the Prism `agent` field into a cleaned office agent ID.
@@ -33,7 +33,7 @@ function resolvePrismAgentId(data) {
   const rawAgent = data.agent || data.agentId || null;
   if (rawAgent) {
     const cleaned = cleanAgentId(rawAgent);
-    if (cleaned) return cleaned;
+    if (cleaned) return canonicalAgentId(cleaned);
   }
 
   // Fallback: try to extract from conversationId or model context

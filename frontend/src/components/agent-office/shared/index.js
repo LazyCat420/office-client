@@ -13,6 +13,7 @@
 // ── Agent identification and station routing ──
 export {
   cleanAgentId,
+  canonicalAgentId,
   getHomeStation,
   getStationForAgentOrTool,
   NON_PIPELINE_AGENTS,

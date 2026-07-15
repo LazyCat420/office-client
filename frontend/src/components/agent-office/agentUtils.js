@@ -55,14 +55,31 @@ export function cleanAgentId(agentName) {
 }
 
 /**
+ * Canonicalizes an agent ID so the same pipeline agent maps to ONE key
+ * regardless of source. The three event sources disagree:
+ *   - polled feed:  V3_V3_JUNIOR_ANALYST (backend prefixes v3_ onto names that already start with v3_)
+ *   - system SSE:   v3_junior_analyst
+ *   - prism SSE:    CUSTOM_V3_JUNIOR_ANALYST
+ * All collapse to V3_JUNIOR_ANALYST. Apply at every entry point where an
+ * agent id is derived from an event, AFTER cleanAgentId/extraction.
+ */
+export function canonicalAgentId(agentId) {
+  if (!agentId) return agentId;
+  return agentId
+    .replace(/^CUSTOM_/i, '')
+    .replace(/^V3_V3_/i, 'V3_')
+    .toUpperCase();
+}
+
+/**
  * Returns the home station/room for a given agent ID.
  * Supports is3D flag because 3D office has a dedicated 'janitor' station,
  * while 2D office places janitors at the 'tool_bench'.
  */
 export function getHomeStation(agentId, is3D = false) {
   const idLower = (agentId || '').toLowerCase();
-  if (idLower.includes('debate') || idLower.includes('debater') || idLower.includes('bull_') || idLower.includes('bear_')) {
-    return 'debate'; // War Room
+  if (idLower.includes('debate') || idLower.includes('debater') || idLower.includes('bull_') || idLower.includes('bear_') || idLower.includes('board_of_directors')) {
+    return 'debate'; // War Room (incl. V3 debate judge + board of directors)
   }
   if (idLower.includes('risk') || idLower.includes('pre_trade')) {
     return 'error'; // Risk Management
@@ -70,11 +87,11 @@ export function getHomeStation(agentId, is3D = false) {
   if (idLower.includes('janitor') || idLower.includes('purge')) {
     return is3D ? 'janitor' : 'tool_bench'; // Janitors belong at Janitor Station (3D) or Tool Bench (2D)
   }
-  if (idLower.includes('allocator') || idLower.includes('executor') || idLower.includes('trade_agent') || idLower.includes('trader') || idLower.includes('synthesizer')) {
-    return 'inbox'; // Exec Office
+  if (idLower.includes('allocator') || idLower.includes('executor') || idLower.includes('trade_agent') || idLower.includes('trader') || idLower.includes('synthesizer') || idLower.includes('portfolio_manager')) {
+    return 'inbox'; // Exec Office (incl. V3 portfolio manager + decision synthesizer)
   }
-  if (idLower.includes('research') || idLower.includes('quant') || idLower.includes('technical') || idLower.includes('analysis') || idLower.includes('retriever')) {
-    return 'research'; // Research Desk
+  if (idLower.includes('research') || idLower.includes('quant') || idLower.includes('technical') || idLower.includes('analysis') || idLower.includes('retriever') || idLower.includes('fundamental') || idLower.includes('junior') || idLower.includes('regime')) {
+    return 'research'; // Research Desk (incl. V3 analysts + regime engine)
   }
   if (idLower.includes('planner')) {
     return 'desk'; // General Desk
