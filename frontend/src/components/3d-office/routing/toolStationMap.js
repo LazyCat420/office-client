@@ -290,14 +290,17 @@ export function getEmojiAnimVariant(emoji, station) {
   if (!emoji) return null;
 
   if (station === 'research') {
-    // 0=shuffling papers, 1=comparing charts, 2=flipping book, 3=scanning doc, 4=whiteboard, 5=typing, 6=talking
-    if (['🧹', '🗑️', '🧽'].includes(emoji)) return 0;
+    // 0=shuffling papers, 1=comparing charts, 2=flipping book, 3=scanning doc,
+    // 4=writing whiteboard, 5=writing on paper, 6=typing keyboard, 7=talking, 8=throwing papers
+    if (['🧹', '🧽'].includes(emoji)) return 0;
     if (['📊', '📈', '📉', '🪙', '💵', '💰', '💸'].includes(emoji)) return 1;
     if (['📚', '📖', '📒', '📰'].includes(emoji)) return 2;
     if (['🔍', '🔎', '🌐', '🕷️', '🕸️'].includes(emoji)) return 3;
     if (['📝', '✏️', '🖋️'].includes(emoji)) return 4;
-    if (['💻', '⌨️'].includes(emoji)) return 5;
-    if (['💬', '🗣️', '👥'].includes(emoji)) return 6;
+    if (['📄', '🧾'].includes(emoji)) return 5;
+    if (['💻', '⌨️'].includes(emoji)) return 6;
+    if (['💬', '🗣️', '👥'].includes(emoji)) return 7;
+    if (['🗑️', '❌', '🚫'].includes(emoji)) return 8;
   }
 
   if (station === 'desk') {

@@ -66,5 +66,5 @@ The `agentOffice.css` is imported directly for shared CSS class names.
 
 1. **Pipeline events** → `page.js` polls cycle status → passes `events` prop → `useAgentEvents` hook processes them via `mapEvent` → agents walk between stations
 2. **Prism SSE** → `useAgentEvents` listens to `/api/v1/system/stream` for real-time agent execution logs
-3. **Voice quotes** → `AgentOffice3D` SSE listens to `/api/v1/prism/stream` → `agent_voice` events trigger `triggerAgentSpeech()` → Piper TTS (port 3032) or Web Speech API fallback
+3. **Voice quotes** → structured `data.kind` payloads on the pipeline events (`agent_done`, `debate_verdict`, `board_convened`, `trade_executed`, …) are turned into quotes by `emitRichFeedback` → `triggerAgentSpeech()` → Piper TTS (port 3032) or Web Speech API fallback
 4. **Persona config** → Fetched on mount via `getAgentPersonas()` → merged into agent state as `avatar_config`

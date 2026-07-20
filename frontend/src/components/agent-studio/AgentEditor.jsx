@@ -4,6 +4,15 @@ import React, { useState, useEffect, useCallback } from 'react';
 import * as api from '@/lib/api';
 import AvatarPreview from './AvatarPreview';
 import ToolSelection from './ToolSelection';
+import {
+  DEFAULT_AVATAR_CONFIG,
+  ACCESSORY_OPTIONS,
+  SLOT_ORDER,
+  SLOT_LABELS,
+  normalizeAccessories,
+  accessoryForSlot,
+  setAccessorySlot,
+} from '@/components/3d-office/agent/avatarConfig';
 
 const ROLES = [
   { value: 'QUANT', label: 'Quantitative Analyst', icon: '📐' },
@@ -13,17 +22,6 @@ const ROLES = [
   { value: 'RISK', label: 'Risk Manager', icon: '🛡️' },
   { value: 'DATA_JANITOR', label: 'Data Janitor', icon: '🧹' },
   { value: 'PM', label: 'Portfolio Manager', icon: '👔' },
-];
-
-const ACCESSORIES = [
-  { value: '', label: 'None' },
-  { value: 'glasses', label: 'Glasses' },
-  { value: 'top_hat', label: 'Top Hat' },
-  { value: 'cap', label: 'Baseball Cap' },
-  { value: 'crown', label: 'Crown' },
-  { value: 'beanie', label: 'Beanie' },
-  { value: 'tie', label: 'Tie' },
-  { value: 'headset', label: 'Headset' },
 ];
 
 const ACCENTS = [
@@ -85,11 +83,9 @@ export default function AgentEditor({ agent, onSave, onDelete, RigComponent }) {
         voice_rate: agent.voice_rate ?? 1.0,
         voice_accent: agent.voice_accent || '',
         avatar_config: {
-          skin_color: agent.avatar_config?.skin_color || '#fde68a',
-          hair_color: agent.avatar_config?.hair_color || '#1e293b',
-          outfit_color: agent.avatar_config?.outfit_color || '#3b82f6',
-          accent_color: agent.avatar_config?.accent_color || '#f59e0b',
-          accessory: agent.avatar_config?.accessory || '',
+          ...DEFAULT_AVATAR_CONFIG,
+          ...(agent.avatar_config || {}),
+          accessories: normalizeAccessories(agent.avatar_config),
         },
         allowed_tools: agent.allowed_tools || [],
         execution_order: agent.execution_order ?? 1,
@@ -116,6 +112,13 @@ export default function AgentEditor({ agent, onSave, onDelete, RigComponent }) {
     setForm(prev => ({
       ...prev,
       avatar_config: { ...prev.avatar_config, [key]: value },
+    }));
+  }, []);
+
+  const updateAvatarSlot = useCallback((slot, value) => {
+    setForm(prev => ({
+      ...prev,
+      avatar_config: setAccessorySlot(prev.avatar_config, slot, value),
     }));
   }, []);
 
@@ -453,18 +456,20 @@ export default function AgentEditor({ agent, onSave, onDelete, RigComponent }) {
                   <span className="agent-studio__color-label">Accent</span>
                 </div>
               </div>
-              <div className="agent-studio__field" style={{ marginTop: 8 }}>
-                <label className="agent-studio__label">Accessory / Hat</label>
-                <select
-                  className="agent-studio__select"
-                  value={form.avatar_config?.accessory || ''}
-                  onChange={e => updateAvatar('accessory', e.target.value || null)}
-                >
-                  {ACCESSORIES.map(a => (
-                    <option key={a.value} value={a.value}>{a.label}</option>
-                  ))}
-                </select>
-              </div>
+              {SLOT_ORDER.map(slot => (
+                <div key={slot} className="agent-studio__field" style={{ marginTop: 8 }}>
+                  <label className="agent-studio__label">{SLOT_LABELS[slot]}</label>
+                  <select
+                    className="agent-studio__select"
+                    value={accessoryForSlot(form.avatar_config, slot)}
+                    onChange={e => updateAvatarSlot(slot, e.target.value)}
+                  >
+                    {ACCESSORY_OPTIONS[slot].map(a => (
+                      <option key={a.value} value={a.value}>{a.label}</option>
+                    ))}
+                  </select>
+                </div>
+              ))}
             </div>
           </div>
         </div>

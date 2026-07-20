@@ -10,17 +10,7 @@ import { pickVariant, STATION_FACING } from '../animations';
 import { getToolAnimVariant, getCompletionVariant } from './toolStationMap';
 import { nudgeIfBlocked, findWaypoints } from './collisionMap';
 
-// ── Room angles (clockwise from south/+Z, radians) ──
-const A = {
-  lobby:       0,
-  inbox:       2 * Math.PI / 7,   // ~51.4°
-  debate:      4 * Math.PI / 7,   // ~102.9°
-  tool_bench:  6 * Math.PI / 7,   // ~154.3°
-  research:    8 * Math.PI / 7,   // ~205.7°
-  error:       10 * Math.PI / 7,  // ~257.1°
-  smoke_break: 12 * Math.PI / 7,  // ~308.6°
-};
-const R_ROOM = 23.5; // radius for room centers
+import { ROOM_ANGLES as A, R_ROOM } from './roomGeometry';
 
 export const STATIONS = {
   lobby: {
@@ -116,7 +106,6 @@ export const AGENT_STATES = {
   IDLE: 'idle',
   WALKING: 'walking',
   WORKING: 'working',
-  EMITTING: 'emitting',
   ERROR: 'error',
   EXITING: 'exiting',
   FIRED: 'fired',

@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { Html } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { STATIONS } from './routing';
+import { ROOM_ANGLES as RA } from './routing/roomGeometry';
 import {
   Wall,
   Table,
@@ -20,17 +21,6 @@ const BLDG_R = 32;     // Building outer radius
 const INNER_R = 15;    // Trading floor inner boundary
 const NUM_SEG = 48;    // Wall segments for circular wall
 const WH = 1.2;        // Wall height
-
-// Room angles (clockwise from south/+Z)
-const RA = {
-  lobby:       0,
-  inbox:       2 * Math.PI / 7,
-  debate:      4 * Math.PI / 7,
-  tool_bench:  6 * Math.PI / 7,
-  research:    8 * Math.PI / 7,
-  error:       10 * Math.PI / 7,
-  smoke_break: 12 * Math.PI / 7,
-};
 
 // Divider wall angles (between adjacent rooms)
 const divAngles = Array.from({ length: 7 }, (_, i) => (2 * i + 1) * Math.PI / 7);

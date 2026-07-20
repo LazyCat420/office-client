@@ -13,7 +13,6 @@ export { STATION_FACING, STATION_ANIM_VARIANTS, pickVariant } from './types';
 // Re-export individual station anim arrays for custom use
 export { DESK_ANIMS } from './desk';
 export { RESEARCH_ANIMS } from './research';
-export { THROWING_ANIMS } from './throwing';
 export { TOOLS_ANIMS } from './tools';
 export { DEBATE_ANIMS } from './debate';
 export { EXEC_ANIMS } from './exec';

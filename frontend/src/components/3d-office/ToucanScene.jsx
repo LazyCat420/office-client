@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { Toucan } from './primitives/Toucan';
 import { GlassCup } from './primitives/GlassCup';
 import { soundManager } from './SoundManager';
+import { ROOM_ANGLES } from './routing/roomGeometry';
 
 /**
  * ToucanScene — Manages the toucan and all breakable glass cups in the office.
@@ -13,7 +14,7 @@ import { soundManager } from './SoundManager';
  * The break room is at angle RA.smoke_break = 12 * Math.PI / 7 ≈ 5.385 rad.
  */
 
-const SMOKE_BREAK_ANGLE = 12 * Math.PI / 7;
+const SMOKE_BREAK_ANGLE = ROOM_ANGLES.smoke_break;
 
 // Cup positions in LOCAL break room coordinates (before rotation)
 // These sit on the two tables in the break room

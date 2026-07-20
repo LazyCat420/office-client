@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import * as api from '@/lib/api';
 import AgentEditor from './AgentEditor';
 import OmniChat from './OmniChat';
+import { DEFAULT_AVATAR_CONFIG } from '@/components/3d-office/agent/avatarConfig';
 import './agentStudio.css';
 
 const ROLE_COLORS = {
@@ -100,13 +101,7 @@ export default function AgentStudio({
       system_prompt: initialData.system_prompt || initialData.prompt || '',
       voice_pitch: initialData.voice_pitch || 1.0,
       voice_rate: initialData.voice_rate || 1.0,
-      avatar_config: initialData.avatar_config || {
-        skin_color: '#fde68a',
-        hair_color: '#1e293b',
-        outfit_color: '#3b82f6',
-        accent_color: '#f59e0b',
-        accessory: null,
-      },
+      avatar_config: initialData.avatar_config || { ...DEFAULT_AVATAR_CONFIG },
       allowed_tools: initialData.allowed_tools || initialData.tools || [],
       execution_order: Math.min(10, Math.max(1, initialData.execution_order || (agents.length + 1))),
       is_active: initialData.is_active !== undefined ? initialData.is_active : true,

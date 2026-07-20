@@ -49,7 +49,8 @@ import {
 ## TTS Data Flow
 
 1. Backend (`trading-service/app/services/agent_voice_service.py`) generates voice quotes via vLLM
-2. Quotes are POSTed to `trading-client/api/v1/prism/emit` as `agent_voice` events
-3. Frontend SSE stream (`/api/v1/prism/stream`) delivers them to the 3D office
+2. Structured `data.kind` payloads ride along on the pipeline events written to `pipeline_state`
+3. The office reads them from the polled cycle status and turns them into quotes in `emitRichFeedback`
+   (the old `/api/v1/prism/stream` webhook route emitted zero events and was removed)
 4. `triggerAgentSpeech()` tries Piper TTS (port 3032) first, falls back to Web Speech API
 5. AudioContext requires explicit user gesture (click unmute) before audio plays

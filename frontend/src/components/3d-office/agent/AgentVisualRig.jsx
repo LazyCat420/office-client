@@ -4,7 +4,8 @@ import { useFrame } from '@react-three/fiber';
 import { ToolEmoji } from './ToolEmoji';
 import { HandheldProp } from './HandheldProps';
 import { Html } from '@react-three/drei';
-import { ProceduralHat } from './ProceduralHats';
+import { ProceduralHat, FACE_Y, FACE_Z, EYE_X } from './ProceduralHats';
+import { normalizeAccessories } from './avatarConfig';
 
 export function AgentVisualRig({
   agent,
@@ -29,14 +30,21 @@ export function AgentVisualRig({
 
   // Resolve avatar colors from Agent Studio config, falling back to agent.color
   const avatarColors = useMemo(() => {
-    const ac = agent.avatarConfig || agent.avatar_config;
+    const ac = agent.avatar_config;
     return {
       body: ac?.outfit_color || agent.color,
       legs: ac?.accent_color || agent.color,
       skin: ac?.skin_color || null,
       hair: ac?.hair_color || null,
     };
-  }, [agent.avatarConfig, agent.avatar_config, agent.color]);
+  }, [agent.avatar_config, agent.color]);
+
+  // One accessory per slot, so a cap can coexist with glasses and a tie
+  const accessories = useMemo(
+    () => normalizeAccessories(agent.avatar_config),
+    [agent.avatar_config]
+  );
+  const hasGlasses = accessories.includes('glasses');
 
   // Compute dynamic styles for different bubble types (voice, thinking, success, error)
   const bubbleStyles = useMemo(() => {
@@ -274,69 +282,53 @@ export function AgentVisualRig({
 
           {/* Eyes/Visor */}
           {(() => {
-            const accessory = agent.avatarConfig?.accessory || agent.avatar_config?.accessory;
-            const hasGlasses = accessory === 'glasses';
             // Magnified eyes through thick bottle-bottom lenses
             const eyeRadius = hasGlasses ? 0.085 : 0.05;
-            const eyeZ = hasGlasses ? 0.44 : 0.45;
+            const eyeZ = FACE_Z + (hasGlasses ? 0.04 : 0.05);
+            const renderEye = (side) => (
+              <group position={[side * EYE_X, FACE_Y, eyeZ]}>
+                {hasGlasses && (
+                  <mesh position={[0, 0, -0.001]}>
+                    <circleGeometry args={[eyeRadius + 0.015, 24]} />
+                    <meshBasicMaterial color="#ddd" />
+                  </mesh>
+                )}
+                <mesh>
+                  <circleGeometry args={[eyeRadius, hasGlasses ? 24 : 16]} />
+                  <meshBasicMaterial color={isError ? '#ef4444' : '#fff'} />
+                </mesh>
+                {hasGlasses && (
+                  <mesh position={[0, 0, 0.001]}>
+                    <circleGeometry args={[eyeRadius * 0.45, 16]} />
+                    <meshBasicMaterial color="#222" />
+                  </mesh>
+                )}
+              </group>
+            );
             return (
               <>
                 {/* Render the black visor backing only if NOT wearing glasses */}
                 {!hasGlasses && (
-                  <mesh position={[0, 0.7, 0.35]}>
+                  <mesh position={[0, FACE_Y, FACE_Z - 0.05]}>
                     <boxGeometry args={[0.6, 0.3, 0.2]} />
                     <meshStandardMaterial color="#111" roughness={0.2} metalness={0.8} />
                   </mesh>
                 )}
-
-                {/* Left eye */}
-                <group position={[-0.15, 0.7, eyeZ]}>
-                  {hasGlasses && (
-                    <mesh position={[0, 0, -0.001]}>
-                      <circleGeometry args={[eyeRadius + 0.015, 24]} />
-                      <meshBasicMaterial color="#ddd" />
-                    </mesh>
-                  )}
-                  <mesh>
-                    <circleGeometry args={[eyeRadius, hasGlasses ? 24 : 16]} />
-                    <meshBasicMaterial color={isError ? '#ef4444' : '#fff'} />
-                  </mesh>
-                  {hasGlasses && (
-                    <mesh position={[0, 0, 0.001]}>
-                      <circleGeometry args={[eyeRadius * 0.45, 16]} />
-                      <meshBasicMaterial color="#222" />
-                    </mesh>
-                  )}
-                </group>
-                {/* Right eye */}
-                <group position={[0.15, 0.7, eyeZ]}>
-                  {hasGlasses && (
-                    <mesh position={[0, 0, -0.001]}>
-                      <circleGeometry args={[eyeRadius + 0.015, 24]} />
-                      <meshBasicMaterial color="#ddd" />
-                    </mesh>
-                  )}
-                  <mesh>
-                    <circleGeometry args={[eyeRadius, hasGlasses ? 24 : 16]} />
-                    <meshBasicMaterial color={isError ? '#ef4444' : '#fff'} />
-                  </mesh>
-                  {hasGlasses && (
-                    <mesh position={[0, 0, 0.001]}>
-                      <circleGeometry args={[eyeRadius * 0.45, 16]} />
-                      <meshBasicMaterial color="#222" />
-                    </mesh>
-                  )}
-                </group>
+                {renderEye(-1)}
+                {renderEye(1)}
               </>
             );
           })()}
 
-          {/* Procedural Accessory */}
-          <ProceduralHat 
-            type={agent.avatarConfig?.accessory || agent.avatar_config?.accessory} 
-            mainColor={avatarColors.body}
-            accentColor={avatarColors.legs}
-          />
+          {/* Procedural Accessories — one per slot */}
+          {accessories.map((type) => (
+            <ProceduralHat
+              key={type}
+              type={type}
+              mainColor={avatarColors.body}
+              accentColor={avatarColors.legs}
+            />
+          ))}
 
           <group position={[-0.45, 0.5, 0]} ref={leftArmRef}>
             {/* Thin black arm */}

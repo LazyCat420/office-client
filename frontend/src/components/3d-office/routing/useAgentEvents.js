@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { processEvent, arriveAgent, moveAgent, releaseSlot, resetOccupancy, AGENT_STATES, clearBubble, claimSlot } from './stateMachine';
-import { mapEvent, mapPrismEvent, isPrismWebhookEvent } from '../../agent-office/shared';
+import { mapEvent } from '../../agent-office/shared';
 import { classifyToolStation } from './toolStationMap';
 import { soundManager } from '../SoundManager';
 import { GESTURE_DURATIONS } from '../animations';
@@ -242,8 +242,11 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
     // Extra StarCraft barks for the debate/board choreography.
     if (kind === 'debate_vote') soundManager.playSC('debate', { chance: 0.4 });
     else if (kind === 'debate_clash') soundManager.playSC('debate', { chance: 0.7 });
+    else if (kind === 'debate_pitch') soundManager.playSC('debate', { chance: 0.3 });
     else if (kind === 'debate_verdict') soundManager.playSC(data.vetoed ? 'error' : 'success', { chance: 0.6 });
     else if (kind === 'board_convened') soundManager.playSC('work', { chance: 0.5 });
+    else if (kind === 'contradiction_shadow') soundManager.playSC('debate', { chance: 0.5 });
+    else if (kind === 'trade_executed') soundManager.playSC('success', { chance: 0.9 });
 
     // Spoken TTS — decision-makers only, throttled so the queue never backs up.
     if (!onVoiceEvent) return;
@@ -261,6 +264,14 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
     } else if (kind === 'board_convened') {
       agentId = 'V3_BOARD_OF_DIRECTORS';
       quote = `Convening the board on ${ticker}${data.persona ? `. Chair: ${data.persona}` : ''}.`;
+    } else if (kind === 'trade_executed') {
+      agentId = 'V3_PORTFOLIO_MANAGER';
+      quote = data.side && data.qty
+        ? `${String(data.side).toUpperCase()} ${data.qty} ${ticker}. Order filled.`
+        : `${ticker}: order filled.`;
+    } else if (kind === 'contradiction_shadow' && data.summary) {
+      agentId = 'V3_DEBATE_JUDGE';
+      quote = `Noting a contradiction on ${ticker}. ${data.summary}`;
     }
     if (!agentId || !quote) return;
 
@@ -280,6 +291,8 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
       for (const timer of Object.values(exitTimersRef.current)) clearTimeout(timer);
       for (const timer of Object.values(bubbleTimersRef.current)) clearTimeout(timer);
       for (const timer of Object.values(gestureTimersRef.current)) clearTimeout(timer);
+      for (const timer of cycleEndTimersRef.current) clearTimeout(timer);
+      cycleEndTimersRef.current = [];
     };
   }, []);
 
@@ -642,66 +655,11 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
     };
   }, [isRunning, sceneMounted, applyTimers]);
 
-  // ── Prism webhook SSE — always-on, drives agent animations from
-  //    prism-service's real-time webhook events (tool calls, generation lifecycle)
-  //    Also forwards agent_voice events to the parent via onVoiceEvent callback,
-  //    eliminating the need for a duplicate SSE connection in AgentOffice3D.
-  const onVoiceEventRef = useRef(onVoiceEvent);
-  useEffect(() => { onVoiceEventRef.current = onVoiceEvent; }, [onVoiceEvent]);
-
-  useEffect(() => {
-    // Guard: don't open SSE until the scene has mounted
-    if (!mountedRef.current) return;
-
-    let es = null;
-    let cancelled = { current: false };
-    const prismStreamUrl =
-      '/api/v1/prism/stream?events=request.tool_call.started,request.tool_call.completed,generation.started,generation.completed,request.created';
-
-    try {
-      es = openSSEWithBackoff(prismStreamUrl, (e) => {
-        if (cancelled.current) return;
-        try {
-          const parsed = JSON.parse(e.data);
-
-          // Forward agent_voice events to the parent component
-          if (parsed.type === 'agent_voice' && onVoiceEventRef.current) {
-            onVoiceEventRef.current(parsed);
-            return;
-          }
-
-          // Only process Prism webhook events (have eventType field)
-          if (!isPrismWebhookEvent(parsed)) return;
-
-          // Translate Prism event → office events
-          const officeEvents = mapPrismEvent(parsed, classifyToolStation);
-          if (officeEvents.length === 0) return;
-
-          setAgents(prevAgents => {
-            let updated = { ...prevAgents };
-            for (const oe of officeEvents) {
-              if (oe.type === 'agent_voice') {
-                if (onVoiceEventRef.current) onVoiceEventRef.current(oe);
-                continue;
-              }
-              updated = processEvent(updated, oe);
-              applyTimers(oe.agentId, updated[oe.agentId]);
-            }
-            return updated;
-          });
-        } catch (err) {
-          // Silently ignore parse errors from non-JSON SSE messages
-        }
-      }, cancelled);
-    } catch (err) {
-      // SSE construction failed — will not retry automatically
-    }
-
-    return () => {
-      cancelled.current = true;
-      if (es) es.close();
-    };
-  }, [sceneMounted, applyTimers]);
+  // NOTE: this hook used to also subscribe to /api/v1/prism/stream and map
+  // Prism webhook events (generation.*, request.tool_call.*) into office
+  // events. That stream emits nothing — AgentDetailsSidebar migrated off it
+  // for the same reason — so the subscription and its mapper were removed.
+  // Live movement comes from the polled cycle status and /api/v1/system/stream.
 
   // Auto-expire inactive agents — walk to exit door and then leave the office completely
   useEffect(() => {
@@ -745,11 +703,13 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
             changed = true;
 
             // After walk completes, arrive at exit door, which sets state to EXITING
+            if (exitTimersRef.current[id]) clearTimeout(exitTimersRef.current[id]);
             exitTimersRef.current[id] = setTimeout(() => {
               setAgents(curr => {
                 if (!curr[id]) return curr;
                 return { ...curr, [id]: arriveAgent(curr[id]) };
               });
+              delete exitTimersRef.current[id];
             }, WALK_DURATION_MS);
           }
         }
@@ -785,11 +745,21 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
   }, []);
 
   const cycleEndStatusRef = useRef(status);
+  // The end-of-cycle celebration runs on a ~15s delay chain. Held here so a
+  // new cycle (or an unmount) can cancel it — otherwise a quick restart drags
+  // every agent off to the break room mid-run.
+  const cycleEndTimersRef = useRef([]);
 
   // When cycle ends — walk everyone to break room for a smoke, don't exit
   useEffect(() => {
     const isDone = status === 'done' || status === 'error';
     const wasDone = cycleEndStatusRef.current === 'done' || cycleEndStatusRef.current === 'error';
+
+    if (!isDone && wasDone) {
+      // A new cycle started before the last one's break-room sequence ran out.
+      for (const timer of cycleEndTimersRef.current) clearTimeout(timer);
+      cycleEndTimersRef.current = [];
+    }
 
     if (isDone && !wasDone) {
       // Cycle finished — celebrate (or lament) before the smoke break.
@@ -807,7 +777,7 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
         }
         return updated;
       });
-      setTimeout(() => {
+      cycleEndTimersRef.current.push(setTimeout(() => {
         setAgents(prev => {
           const updated = {};
           for (const [id, agent] of Object.entries(prev)) {
@@ -820,9 +790,9 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
           }
           return updated;
         });
-      }, GESTURE_DURATION_MS);
+      }, GESTURE_DURATION_MS));
       // After celebration + walk, arrive everyone in break room
-      setTimeout(() => {
+      cycleEndTimersRef.current.push(setTimeout(() => {
         setAgents(prev => {
           const updated = {};
           for (const [id, agent] of Object.entries(prev)) {
@@ -830,7 +800,7 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
           }
           return updated;
         });
-      }, GESTURE_DURATION_MS + WALK_DURATION_MS + 500);
+      }, GESTURE_DURATION_MS + WALK_DURATION_MS + 500));
     }
     cycleEndStatusRef.current = status;
   }, [status]);

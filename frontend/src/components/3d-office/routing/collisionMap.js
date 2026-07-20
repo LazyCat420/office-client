@@ -9,16 +9,10 @@
  * All coordinates are world-space XZ (Y is up, ignored).
  */
 
-// ── Room angles (must match Stations.jsx / stateMachine.js) ──
-const RA = {
-  lobby:       0,
-  inbox:       2 * Math.PI / 7,
-  debate:      4 * Math.PI / 7,
-  tool_bench:  6 * Math.PI / 7,
-  research:    8 * Math.PI / 7,
-  error:       10 * Math.PI / 7,
-  smoke_break: 12 * Math.PI / 7,
-};
+import { ROOM_ANGLES as RA } from './roomGeometry';
+
+/** The central trading pit — looked up by name, not by index. */
+const PIT_OBSTACLE_ID = 'trading_pit';
 
 // ── Helper: rotate a local room position (lx, lz) by room angle ──
 function rotatePoint(lx, lz, angle) {
@@ -60,7 +54,7 @@ function buildObstacles() {
   // ── Trading Pit (center) ──
   // Central pillar r=0.8, desk cylinder r=2.8, inner monitors r=1.5,
   // outer monitors r=3.2 → single circle covers everything with margin
-  obs.push({ type: 'circle', x: 0, z: 0, r: 4.0 });
+  obs.push({ id: PIT_OBSTACLE_ID, type: 'circle', x: 0, z: 0, r: 4.0 });
 
   // ── Potted plants around trading floor perimeter ──
   // Radius 12 matches Stations.jsx (they used to be at 8 here, which pinned
@@ -437,8 +431,10 @@ export function findWaypoints(x1, z1, x2, z2, agentRadius = 0.5) {
 
   // Segment 2: source doorway → dest doorway (may need to arc around pit)
   if (isLineBlocked(srcDoor[0], srcDoor[1], dstDoor[0], dstDoor[1], agentRadius)) {
-    const pit = OBSTACLES[0];
-    waypoints.push(...arcAroundCircle(pit, srcDoor[0], srcDoor[1], dstDoor[0], dstDoor[1], agentRadius));
+    const pit = OBSTACLES.find(o => o.id === PIT_OBSTACLE_ID);
+    if (pit) {
+      waypoints.push(...arcAroundCircle(pit, srcDoor[0], srcDoor[1], dstDoor[0], dstDoor[1], agentRadius));
+    }
   }
 
   // Add destination doorway

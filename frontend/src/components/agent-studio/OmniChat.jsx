@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import * as api from '@/lib/api';
+import { DEFAULT_AVATAR_CONFIG } from '@/components/3d-office/agent/avatarConfig';
 import './omniChat.css';
 
 const PRISM_API = '/prism-api';
@@ -292,13 +293,7 @@ export default function OmniChat({ onCreateAgent, onRefreshRoster, onAgentSaved,
         temperature: data.temperature || 0.7,
         voice_pitch: data.voice_pitch || 1.0,
         voice_rate: data.voice_rate || 1.0,
-        avatar_config: data.avatar_config || {
-          skin_color: '#fde68a',
-          hair_color: '#1e293b',
-          outfit_color: '#3b82f6',
-          accent_color: '#f59e0b',
-          accessory: null,
-        },
+        avatar_config: data.avatar_config || { ...DEFAULT_AVATAR_CONFIG },
       };
 
       console.log('[OmniChat] Saving agent persona with payload:', agentPayload);

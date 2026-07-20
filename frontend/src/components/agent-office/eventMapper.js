@@ -19,6 +19,14 @@ const PHASE_TO_STATION = {
   collecting_data: 'research',
   data_collection: 'research',
   scraping: 'research',
+  // Phases the V3 pipeline actually emits (pipeline_service.emit / orchestrator).
+  // Everything else here is legacy and kept only so older cycles still replay.
+  discovery: 'research',
+  freshness_gate: 'research',
+  scraper: 'research',
+  precollect: 'research',
+  gatekeeper: 'error',
+  running: 'lobby',
   // Analysis phases → Trading Floor
   analyzing: 'desk',
   analysis: 'desk',
@@ -54,11 +62,11 @@ const PHASE_TO_STATION = {
 
 const STEP_KEYWORDS_TO_STATION = [
   // Most specific first
-  { keywords: ['fundamental', 'technical', 'price', 'crypto', 'news', 'reddit', 'youtube', 'completeness', 'scrape', 'fetch', 'search', 'regime'], station: 'research' },
+  { keywords: ['fundamental', 'technical', 'price', 'crypto', 'news', 'reddit', 'youtube', 'completeness', 'scrape', 'fetch', 'search', 'regime', 'research', 'triage', 'precollect'], station: 'research' },
   { keywords: ['janitor', 'purge', 'cleanup', 'tool', 'api'], station: 'tool_bench' },
-  { keywords: ['debate', 'consensus', 'compare', 'vote', 'bull', 'bear', 'v2_team_findings', 'board_of_directors'], station: 'debate' },
+  { keywords: ['debate', 'consensus', 'compare', 'vote', 'bull', 'bear', 'v2_team_findings', 'board_of_directors', 'tournament', 'v3_bod', 'shadow'], station: 'debate' },
   { keywords: ['trade', 'order', 'execute', 'decision', 'recommend', 'envelope', 'v2_position', 'portfolio'], station: 'inbox' },
-  { keywords: ['risk', 'veto', 'pre_trade'], station: 'error' },
+  { keywords: ['risk', 'veto', 'pre_trade', 'watch_desk', 'watch_trip', 'v3_policy'], station: 'error' },
   // Generic fallback — lowest priority
   { keywords: ['analy', 'synth', 'infer', 'llm', 'model', 'prompt', 'generate', 'v2_orchestrator'], station: 'desk' },
   { keywords: ['error', 'fail', 'retry', 'timeout'], station: 'error' },

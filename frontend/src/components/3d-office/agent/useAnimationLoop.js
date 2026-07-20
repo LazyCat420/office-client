@@ -22,6 +22,10 @@ import * as THREE from 'three';
 // Hoisted scratch vector for kinematic collider sync (avoid per-frame alloc)
 const _worldPos = new THREE.Vector3();
 
+/** An agent is a janitor by tool assignment or by name, whatever station it's at. */
+const isJanitorAgent = (agent) =>
+  agent.tool === 'janitor' || Boolean(agent.id && agent.id.toLowerCase().includes('janitor'));
+
 /**
  * @param {Object} agent — agent state from stateMachine
  * @param {Object} position — spring animated position { get: () => [x, y, z] }
@@ -99,8 +103,10 @@ export function useAnimationLoop(agent, position, refs) {
     } else if (currentAgent.isSpeaking) {
       anim = getTalkingAnimation(idHash, t);
     } else if (currentIsWorking || currentIsIdle || currentIsError) {
-      if (currentAgent.tool === 'janitor' || (currentAgent.id && currentAgent.id.toLowerCase().includes('janitor'))) {
-        anim = getAnimation('janitor', 0, t);
+      if (isJanitorAgent(currentAgent)) {
+        // Use the agent's own variant so the janitor mops and cleans windows
+        // instead of sweeping forever; getAnimation wraps out-of-range indices.
+        anim = getAnimation('janitor', currentAgent.animVariant || 0, t);
       } else if (currentAgent.station === 'debate' && currentAgent.opponentId) {
         // Two debaters take turns: one thrusts while the other parries, swapping
         // every beat, so the War Room reads as a real exchange, not two solos.
@@ -296,6 +302,19 @@ export function useAnimationLoop(agent, position, refs) {
       const wanderK = dampK(0.12);
       off.x += (wx - off.x) * wanderK;
       off.z += (wz - off.z) * wanderK;
+
+      // Keep the wander from walking a lounging agent into the furniture.
+      // Their resting spot may legitimately overlap a couch or table (see the
+      // note above), so only the *extra* penetration the wander introduced is
+      // resolved — the seat itself is left exactly where it was placed.
+      const restCol = getCollision(curX, curZ, agentRadius);
+      const restPenetration = restCol ? restCol.penetration : 0;
+      const wanderCol = getCollision(curX + off.x, curZ + off.z, agentRadius);
+      if (wanderCol && wanderCol.penetration > restPenetration) {
+        const excess = wanderCol.penetration - restPenetration;
+        off.x += wanderCol.normal.x * excess;
+        off.z += wanderCol.normal.z * excess;
+      }
     }
 
     // 4. Spring restoring force pulling offset back to (0,0)
@@ -487,9 +506,10 @@ export function useAnimationLoop(agent, position, refs) {
 
     if (!isWorking && !isWalking && !isError && !isIdle) return null;
 
-    // Janitor gets broom (by tool name or agent ID)
-    if (agent.tool === 'janitor' || (agent.id && agent.id.toLowerCase().includes('janitor'))) {
-      return 'broom';
+    // Janitor prop comes from the same variant the pose does, so the tool in
+    // hand always matches the motion (broom/sweep, mop/mop, sponge/windows).
+    if (isJanitorAgent(agent)) {
+      return getAnimation('janitor', agent.animVariant || 0, 0).prop;
     }
 
     // Station-first overrides — these stations ALWAYS use their dedicated prop
