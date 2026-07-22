@@ -1,6 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { getAgentGrid } from '@/lib/api';
 
+// The /grid endpoint returns `agents` as an OBJECT keyed by agent id, each shaped
+// { id, station, stationLabel, currentTool, status, bubbleText, lastSeen,
+//   lastSeenIso, history, coordinates }. The panel previously did
+// `gridData.agents.map(...)` (crash: objects have no .map) and read fields that
+// don't exist (agent_id / current_tool / tool_description / latency_ms /
+// last_updated). Normalize to an array and map the real fields.
+function formatLastSeen(agent) {
+  const t = typeof agent.lastSeen === 'number'
+    ? agent.lastSeen
+    : (agent.lastSeenIso ? Date.parse(agent.lastSeenIso) : NaN);
+  return Number.isFinite(t) ? new Date(t).toLocaleTimeString() : '-';
+}
+
 export function AgentGridPanel({ visible }) {
   const [gridData, setGridData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -9,7 +22,7 @@ export function AgentGridPanel({ visible }) {
     if (!visible) return;
 
     let mounted = true;
-    
+
     const fetchGrid = async () => {
       try {
         const data = await getAgentGrid();
@@ -34,10 +47,20 @@ export function AgentGridPanel({ visible }) {
 
   if (!visible) return null;
 
+  // `agents` is an object map; tolerate an array too in case the shape changes.
+  const agents = gridData?.agents
+    ? (Array.isArray(gridData.agents) ? gridData.agents : Object.values(gridData.agents))
+    : [];
+
   return (
     <div className="agent-grid-panel">
       <div className="agent-grid-panel__header">
         <h3>📊 Agent Data Grid</h3>
+        {gridData?.cycleId && (
+          <span className="agent-grid-panel__cycle" style={{ marginLeft: 8, opacity: 0.6, fontSize: 12 }}>
+            {gridData.cycleId}
+          </span>
+        )}
       </div>
       <div className="agent-grid-panel__content">
         {loading && !gridData ? (
@@ -46,32 +69,30 @@ export function AgentGridPanel({ visible }) {
           <table className="agent-grid-table">
             <thead>
               <tr>
-                <th>ID</th>
+                <th>Agent</th>
                 <th>Status</th>
                 <th>Tool</th>
-                <th>Description</th>
-                <th>Latency (ms)</th>
-                <th>Last Update</th>
+                <th>Activity</th>
+                <th>Station</th>
+                <th>Last Seen</th>
               </tr>
             </thead>
             <tbody>
-              {gridData?.agents?.map((agent, i) => (
-                <tr key={i} className={`status-${agent.status}`}>
-                  <td><strong>{agent.agent_id}</strong></td>
+              {agents.map((agent, i) => (
+                <tr key={agent.id || i} className={`status-${agent.status}`}>
+                  <td><strong>{agent.id}</strong></td>
                   <td>
                     <span className={`status-badge status-${agent.status}`}>
-                      {agent.status}
+                      {agent.status || '-'}
                     </span>
                   </td>
-                  <td><code>{agent.current_tool || '-'}</code></td>
-                  <td className="desc-cell" title={agent.tool_description}>{agent.tool_description || '-'}</td>
-                  <td className="latency-cell">
-                    {agent.latency_ms ? `${agent.latency_ms.toFixed(0)}ms` : '-'}
-                  </td>
-                  <td className="time-cell">{new Date(agent.last_updated).toLocaleTimeString()}</td>
+                  <td><code>{agent.currentTool || '-'}</code></td>
+                  <td className="desc-cell" title={agent.bubbleText}>{agent.bubbleText || '-'}</td>
+                  <td>{agent.stationLabel || agent.station || '-'}</td>
+                  <td className="time-cell">{formatLastSeen(agent)}</td>
                 </tr>
               ))}
-              {(!gridData?.agents || gridData.agents.length === 0) && (
+              {agents.length === 0 && (
                 <tr>
                   <td colSpan="6" className="empty-cell">No active agents in grid.</td>
                 </tr>
