@@ -34,6 +34,24 @@ onAudioDisabled(() => {
   }
 });
 
+// One retry on failure: the server evicts a poisoned ONNX session on error,
+// so a second POST usually lands on a clean load. Without this, a single 500
+// drops the line to the Web Speech fallback, which is silent on machines
+// with no local voices installed.
+export async function fetchTTSAudio(cleanText, requestedAccent) {
+  const doFetch = () => fetch('/api/v1/tts/synthesize', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: cleanText, voice_accent: requestedAccent })
+  });
+  let response = await doFetch();
+  if (!response.ok) {
+    console.warn(`[PiperTTS] synthesize returned ${response.status}, retrying once`);
+    response = await doFetch();
+  }
+  return response;
+}
+
 export function computeVolume(agent, sceneEl) {
   if (!agent) return 1.0;
   
@@ -168,12 +186,13 @@ export async function executeSpeech({ quote, agent, sceneEl, onProgress, audioPr
     let ttsResponse;
     if (audioPromise) {
       ttsResponse = await audioPromise;
+      // The pre-fetch has no retry of its own — give a failed one a second shot.
+      if (!ttsResponse.ok) {
+        console.warn(`[PiperTTS] pre-fetched synthesize was ${ttsResponse.status}, retrying once`);
+        ttsResponse = await fetchTTSAudio(cleanText, requestedAccent);
+      }
     } else {
-      ttsResponse = await fetch('/api/v1/tts/synthesize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: cleanText, voice_accent: requestedAccent })
-      });
+      ttsResponse = await fetchTTSAudio(cleanText, requestedAccent);
     }
 
     if (!ttsResponse.ok) throw new Error("Piper TTS HTTP error " + ttsResponse.status);
@@ -348,11 +367,7 @@ export function triggerAgentSpeech(quote, agent, sceneEl, onProgress) {
 
   let audioPromise = null;
   if (typeof window !== 'undefined' && isAudioEnabled() && cleanText) {
-    audioPromise = fetch('/api/v1/tts/synthesize', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: cleanText, voice_accent: requestedAccent })
-    }).catch(err => {
+    audioPromise = fetchTTSAudio(cleanText, requestedAccent).catch(err => {
       console.warn("Pre-fetch TTS failed:", err);
       throw err;
     });
