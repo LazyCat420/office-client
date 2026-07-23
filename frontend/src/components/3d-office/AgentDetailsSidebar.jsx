@@ -2,7 +2,18 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { cleanAgentId } from './routing';
+import { canonicalAgentId } from '../agent-office/shared';
 import { ttsEventEmitter } from '../agent-office/ttsClient';
+
+// Normalize any agent spelling (v3_quant_analyst, CUSTOM_V3_QUANT_ANALYST,
+// V3_QUANT_ANALYST…) to one comparable key so per-agent filtering can do an
+// exact match instead of fuzzy contains-checks.
+function normalizeForMatch(id) {
+  if (!id) return null;
+  const cleaned = cleanAgentId(id);
+  if (!cleaned) return null;
+  return canonicalAgentId(cleaned).replace(/^V3_/, '');
+}
 
 // Maps frontend cleaned agent IDs (from useAgentEvents' cleanAgentId) back to Prism custom agent IDs.
 // These must match the actual agent IDs stored in Prism conversations' settings.agent field.
@@ -21,6 +32,16 @@ function resolvePrismAgentId(agentName) {
   // Prism only knows about parent agents, not frontend-created worker sub-IDs.
   const workerMatch = name.match(/^(.+?)_worker_\d+$/);
   const baseName = workerMatch ? workerMatch[1] : name;
+
+  // V3 pipeline agents register in Prism as CUSTOM_<OFFICE_ID> verbatim
+  // (verified live 2026-07-22: CUSTOM_V3_QUANT_ANALYST, CUSTOM_V3_JUNIOR_ANALYST,
+  // CUSTOM_V3_DECISION_SYNTHESIZER, …). Resolve them BEFORE the fuzzy rules
+  // below, which used to misroute e.g. V3_QUANT_ANALYST into the legacy
+  // CUSTOM_QUANT_RESEARCH_AGENT bucket — a big cause of "every agent shows
+  // the same chat history".
+  if (baseName.startsWith('v3_')) {
+    return `CUSTOM_${baseName.toUpperCase()}`;
+  }
 
   // Map cleaned IDs back to ACTUAL Prism conversation agent IDs
   // These IDs were verified by querying the live Prism API
@@ -203,6 +224,16 @@ export function AgentDetailsSidebar({ agentId, agentColor, onClose, isRunning })
           const { eventType, data } = event;
           if (!data) return;
 
+          // Defense-in-depth: the server stream filters per-agent, but any
+          // event that names a DIFFERENT agent must never render here. Events
+          // with no agent identity are trusted to the server's filter.
+          const eventAgent = data.agent || data.agent_id || null;
+          if (eventAgent) {
+            const evNorm = normalizeForMatch(eventAgent);
+            const targetNorm = normalizeForMatch(agentId);
+            if (evNorm && targetNorm && evNorm !== targetNorm) return;
+          }
+
           const timestamp = new Date().toLocaleTimeString();
           let text = '';
           let type = 'info';
@@ -358,7 +389,10 @@ export function AgentDetailsSidebar({ agentId, agentColor, onClose, isRunning })
         
         const fetchPromises = agentIds.map(async (id) => {
           try {
-            const res = await fetch(`/prism-api/conversations?search=${encodeURIComponent(id)}&limit=100&type=agent`, {
+            // `agent=` is an EXACT equality filter in Prism (it also pulls the
+            // agent's own sub-agent conversations). The old `search=` was a
+            // substring text match that returned other agents' conversations.
+            const res = await fetch(`/prism-api/conversations?agent=${encodeURIComponent(id)}&limit=100&type=agent`, {
               headers: {
                 'x-project': 'vllm-trading-bot',
                 'x-username': 'lazy-trader'

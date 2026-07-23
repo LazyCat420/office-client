@@ -9,6 +9,7 @@ import { useAgentEvents, AGENT_STATES, cleanAgentId, arriveAgent, createAgent, p
 import { canMoveAgent } from './routing/roomConstraints';
 import { STATIONS } from './routing/stateMachine';
 import { AgentDetailsSidebar } from './AgentDetailsSidebar';
+import { AudioCaptions } from './AudioCaptions';
 import {
   triggerAgentSpeech,
   getHomeStation,
@@ -485,6 +486,9 @@ export default function AgentOffice3D({ events, status, phase, audioEnabled = fa
               }}
             />
           </Canvas>
+
+          {/* Who-is-talking captions for barks + TTS */}
+          <AudioCaptions />
 
           {/* Toast notification */}
           {toast && (

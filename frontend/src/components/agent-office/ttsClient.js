@@ -1,6 +1,7 @@
 import { CHARACTERISTICS, resolveArchetype, getFallbackQuote } from './voiceConstants';
 import { isAudioEnabled, getAudioContext, onAudioDisabled } from './audioContextManager';
 import { cleanAgentId } from './agentUtils';
+import { enqueueAudio, clearAudioQueue } from './audioChannel';
 
 export const ttsEventEmitter = new EventTarget();
 
@@ -26,6 +27,7 @@ export function setGlobalVolume(vol) {
 onAudioDisabled(() => {
   speechQueue.length = 0;
   isProcessingQueue = false;
+  clearAudioQueue();
   if (currentReject) {
     try {
       currentReject();
@@ -349,9 +351,27 @@ async function processQueue() {
 
   const item = speechQueue[0];
   try {
-    await executeSpeech(item);
-  } catch (err) {
-    console.error("[AgentVoice Queue] Error during speech execution:", err);
+    // Speech runs through the shared audio channel so it serializes against
+    // the StarCraft barks (which use HTMLAudioElement, a separate output path).
+    const rawId = (item.agent && typeof item.agent === 'object')
+      ? (item.agent.id || item.agent.agentId || 'unknown')
+      : (typeof item.agent === 'string' ? item.agent : 'unknown');
+    await new Promise((resolve) => {
+      const accepted = enqueueAudio({
+        kind: 'speech',
+        meta: { agentId: cleanAgentId(rawId) || rawId, text: item.quote || '' },
+        play: async () => {
+          try {
+            await executeSpeech(item);
+          } catch (err) {
+            console.error("[AgentVoice Queue] Error during speech execution:", err);
+          } finally {
+            resolve();
+          }
+        },
+      });
+      if (!accepted) resolve(); // speech is never capped, but never deadlock
+    });
   } finally {
     speechQueue.shift();
     isProcessingQueue = false;

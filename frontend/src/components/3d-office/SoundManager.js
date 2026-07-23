@@ -1,9 +1,11 @@
 /**
  * SoundManager.js
- * 
+ *
  * Manages spatial and global sounds for the 3D office.
  * Exposes a helper to play sounds globally if Web Audio is available.
  */
+
+import { enqueueAudio } from '../agent-office/audioChannel';
 
 // ── StarCraft sample library (public/sounds/starcraft/…) ──────────────
 // Category pools; playSC() picks randomly (avoiding immediate repeats) with
@@ -38,12 +40,15 @@ class SoundManager {
   }
 
   /**
-   * Play a random StarCraft clip from a category.
+   * Play a random StarCraft clip from a category — serialized through the
+   * shared audio channel so barks never talk over agent speech or each other.
    * options.chance   — probability gate (0..1, default 1)
    * options.volume   — override volume for this play
    * options.force    — bypass mute (used sparingly, e.g. user-invoked)
+   * options.agentId  — who this bark belongs to (drives the caption overlay)
+   * options.reason   — short human label for the caption (falls back to category)
    */
-  playSC(category, { chance = 1, volume, force = false } = {}) {
+  playSC(category, { chance = 1, volume, force = false, agentId = null, reason = null } = {}) {
     if (typeof window === 'undefined') return;
     if (!force && this.muted) return;
     const pool = SC_SOUNDS[category];
@@ -53,28 +58,55 @@ class SoundManager {
     const now = Date.now();
     const cooldown = SC_COOLDOWN_MS[category] ?? 2000;
     if (now - (this._scLastPlayed[category] || 0) < cooldown) return;
-    this._scLastPlayed[category] = now;
 
     let idx = Math.floor(Math.random() * pool.length);
     if (pool.length > 1 && idx === this._scLastIndex[category]) {
       idx = (idx + 1) % pool.length;
     }
-    this._scLastIndex[category] = idx;
 
     const url = `${SC_BASE}/${category}/${pool[idx]}.mp3`;
-    try {
-      let template = this._scCache[url];
-      if (!template) {
-        template = new Audio(url);
-        template.preload = 'auto';
-        this._scCache[url] = template;
-      }
-      const player = template.cloneNode();
-      player.volume = volume ?? this.scVolume;
-      player.play().catch(() => {}); // autoplay policies — needs a user gesture first
-    } catch {
-      /* sound is never worth crashing the scene */
+    const accepted = enqueueAudio({
+      kind: 'bark',
+      meta: { agentId, category, reason: reason || category, clip: pool[idx] },
+      play: () => this._playScClip(url, volume),
+    });
+    // Only stamp cooldown/repeat state for barks that will actually play, so
+    // a dropped bark doesn't silence the category for the next real event.
+    if (accepted) {
+      this._scLastPlayed[category] = now;
+      this._scLastIndex[category] = idx;
     }
+  }
+
+  /** Resolves when the clip finishes (or errors) — the channel awaits this. */
+  _playScClip(url, volume) {
+    return new Promise((resolve) => {
+      try {
+        // Muted between enqueue and dequeue — stay silent.
+        if (this.muted) { resolve(); return; }
+        let template = this._scCache[url];
+        if (!template) {
+          template = new Audio(url);
+          template.preload = 'auto';
+          this._scCache[url] = template;
+        }
+        const player = template.cloneNode();
+        player.volume = volume ?? this.scVolume;
+        let settled = false;
+        const done = () => {
+          if (settled) return;
+          settled = true;
+          resolve();
+        };
+        player.addEventListener('ended', done, { once: true });
+        player.addEventListener('error', done, { once: true });
+        // autoplay policies — needs a user gesture first
+        player.play().catch(done);
+      } catch {
+        /* sound is never worth crashing the scene */
+        resolve();
+      }
+    });
   }
 
   init() {

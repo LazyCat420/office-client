@@ -126,20 +126,20 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
     // freshly-created agent out of SPAWNING (into WALKING/WORKING) in the same
     // tick, so keying the spawn bark off the committed state almost never hit.
     if (isNew || agentState.state === AGENT_STATES.SPAWNING) {
-      soundManager.playSC('spawn', { chance: 0.7 });
+      soundManager.playSC('spawn', { chance: 0.7, agentId, reason: 'reporting in' });
     } else if (agentState.state === AGENT_STATES.FIRED) {
-      soundManager.playSC('fired');
+      soundManager.playSC('fired', { agentId, reason: 'fired' });
     } else if (agentState.state === AGENT_STATES.WALKING) {
-      if (agentState.targetStation === 'debate') soundManager.playSC('debate', { chance: 0.6 });
-      else if (agentState.targetStation === 'exit_door') soundManager.playSC('idle', { chance: 0.25 });
-      else soundManager.playSC('move', { chance: 0.35 });
+      if (agentState.targetStation === 'debate') soundManager.playSC('debate', { chance: 0.6, agentId, reason: 'heading to debate' });
+      else if (agentState.targetStation === 'exit_door') soundManager.playSC('idle', { chance: 0.25, agentId, reason: 'clocking out' });
+      else soundManager.playSC('move', { chance: 0.35, agentId, reason: 'on the move' });
     } else if (agentState.state === AGENT_STATES.WORKING && agentState.station === 'research') {
-      soundManager.playSC('research', { chance: 0.25 });
+      soundManager.playSC('research', { chance: 0.25, agentId, reason: 'researching' });
     } else if (agentState.state === AGENT_STATES.WORKING) {
-      soundManager.playSC('work', { chance: 0.2 });
+      soundManager.playSC('work', { chance: 0.2, agentId, reason: 'working' });
     }
-    if (agentState.bubbleType === 'error') soundManager.playSC('error', { chance: 0.8 });
-    else if (agentState.bubbleType === 'success') soundManager.playSC('success', { chance: 0.4 });
+    if (agentState.bubbleType === 'error') soundManager.playSC('error', { chance: 0.8, agentId, reason: 'hit an error' });
+    else if (agentState.bubbleType === 'success') soundManager.playSC('success', { chance: 0.4, agentId, reason: 'task complete' });
 
     // ── Gesture — a visible pose for the same transition the bark announces,
     // so the office reads accurately even between barks. Stamped directly on
@@ -239,14 +239,16 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
     const evTs = rawEvent.ts ? Date.parse(rawEvent.ts) : Date.now();
     if (Date.now() - evTs > 30000) return;
 
-    // Extra StarCraft barks for the debate/board choreography.
-    if (kind === 'debate_vote') soundManager.playSC('debate', { chance: 0.4 });
-    else if (kind === 'debate_clash') soundManager.playSC('debate', { chance: 0.7 });
-    else if (kind === 'debate_pitch') soundManager.playSC('debate', { chance: 0.3 });
-    else if (kind === 'debate_verdict') soundManager.playSC(data.vetoed ? 'error' : 'success', { chance: 0.6 });
-    else if (kind === 'board_convened') soundManager.playSC('work', { chance: 0.5 });
-    else if (kind === 'contradiction_shadow') soundManager.playSC('debate', { chance: 0.5 });
-    else if (kind === 'trade_executed') soundManager.playSC('success', { chance: 0.9 });
+    // Extra StarCraft barks for the debate/board choreography — attributed to
+    // the acting agent so the caption overlay can say who barked and why.
+    const barkAgent = primaryOe.agentId;
+    if (kind === 'debate_vote') soundManager.playSC('debate', { chance: 0.4, agentId: barkAgent, reason: 'casting a vote' });
+    else if (kind === 'debate_clash') soundManager.playSC('debate', { chance: 0.7, agentId: barkAgent, reason: 'clashing in debate' });
+    else if (kind === 'debate_pitch') soundManager.playSC('debate', { chance: 0.3, agentId: barkAgent, reason: 'pitching a case' });
+    else if (kind === 'debate_verdict') soundManager.playSC(data.vetoed ? 'error' : 'success', { chance: 0.6, agentId: 'V3_DEBATE_JUDGE', reason: data.vetoed ? 'verdict: vetoed' : 'verdict delivered' });
+    else if (kind === 'board_convened') soundManager.playSC('work', { chance: 0.5, agentId: 'V3_BOARD_OF_DIRECTORS', reason: 'board convening' });
+    else if (kind === 'contradiction_shadow') soundManager.playSC('debate', { chance: 0.5, agentId: 'V3_DEBATE_JUDGE', reason: 'contradiction flagged' });
+    else if (kind === 'trade_executed') soundManager.playSC('success', { chance: 0.9, agentId: 'V3_PORTFOLIO_MANAGER', reason: 'trade executed' });
 
     // Spoken TTS — decision-makers only, throttled so the queue never backs up.
     if (!onVoiceEvent) return;
@@ -765,7 +767,10 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
       // Cycle finished — celebrate (or lament) before the smoke break.
       // Everyone cheers/facepalms in place, in sync with the bark, THEN
       // files out to the break room.
-      soundManager.playSC(status === 'done' ? 'success' : 'error');
+      soundManager.playSC(status === 'done' ? 'success' : 'error', {
+        agentId: 'system',
+        reason: status === 'done' ? 'cycle complete' : 'cycle failed',
+      });
       const endGesture = status === 'done' ? 'cheer' : 'facepalm';
       setAgents(prev => {
         const updated = {};
