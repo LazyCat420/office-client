@@ -20,9 +20,17 @@ export const ACCESSORY_SLOTS = {
   cap: 'head',
   crown: 'head',
   beanie: 'head',
+  cowboy_hat: 'head',
+  fedora: 'head',
+  hard_hat: 'head',
+  wizard_hat: 'head',
+  party_hat: 'head',
   glasses: 'face',
+  sunglasses: 'face',
+  square_glasses: 'face',
   headset: 'ears',
   tie: 'neck',
+  bowtie: 'neck',
 };
 
 // Render/serialise order. Head first so the legacy single-string mirror keeps
@@ -43,10 +51,17 @@ export const ACCESSORY_OPTIONS = {
     { value: 'cap', label: 'Baseball Cap' },
     { value: 'crown', label: 'Crown' },
     { value: 'beanie', label: 'Beanie' },
+    { value: 'cowboy_hat', label: 'Cowboy Hat' },
+    { value: 'fedora', label: 'Fedora' },
+    { value: 'hard_hat', label: 'Hard Hat' },
+    { value: 'wizard_hat', label: 'Wizard Hat' },
+    { value: 'party_hat', label: 'Party Hat' },
   ],
   face: [
     { value: '', label: 'None' },
     { value: 'glasses', label: 'Glasses' },
+    { value: 'sunglasses', label: 'Sunglasses' },
+    { value: 'square_glasses', label: 'Square Specs' },
   ],
   ears: [
     { value: '', label: 'None' },
@@ -55,6 +70,7 @@ export const ACCESSORY_OPTIONS = {
   neck: [
     { value: '', label: 'None' },
     { value: 'tie', label: 'Tie' },
+    { value: 'bowtie', label: 'Bowtie' },
   ],
 };
 

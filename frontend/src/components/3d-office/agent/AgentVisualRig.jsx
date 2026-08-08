@@ -44,7 +44,7 @@ export function AgentVisualRig({
     () => normalizeAccessories(agent.avatar_config),
     [agent.avatar_config]
   );
-  const hasGlasses = accessories.includes('glasses');
+  const hasGlasses = accessories.some((a) => ['glasses', 'sunglasses', 'square_glasses'].includes(a));
 
   // Compute dynamic styles for different bubble types (voice, thinking, success, error)
   const bubbleStyles = useMemo(() => {
@@ -307,13 +307,11 @@ export function AgentVisualRig({
             );
             return (
               <>
-                {/* Render the black visor backing only if NOT wearing glasses */}
-                {!hasGlasses && (
-                  <mesh position={[0, FACE_Y, FACE_Z - 0.05]}>
-                    <boxGeometry args={[0.6, 0.3, 0.2]} />
-                    <meshStandardMaterial color="#111" roughness={0.2} metalness={0.8} />
-                  </mesh>
-                )}
+                {/* Render the black visor backing behind face/eyewear */}
+                <mesh position={[0, FACE_Y, FACE_Z - 0.05]}>
+                  <boxGeometry args={[0.6, 0.3, 0.2]} />
+                  <meshStandardMaterial color="#111" roughness={0.2} metalness={0.8} />
+                </mesh>
                 {renderEye(-1)}
                 {renderEye(1)}
               </>

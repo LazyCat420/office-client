@@ -31,11 +31,9 @@ const headRadiusAt = (y) =>
     ? BODY_RADIUS
     : Math.sqrt(Math.max(0, BODY_RADIUS ** 2 - (y - HEAD_CENTER_Y) ** 2));
 const BRIM_HEAD_RADIUS = headRadiusAt(BRIM_Y); // ≈0.334
-// Collar height is what sets this: any higher and the collar band cuts
-// through the bottom of the face visor (which spans y 0.55–0.85).
 const CHEST_Y = 0.37;
 
-// Define static tie shape and extrude settings at module level to avoid conditional hook errors
+// Define static tie shape and extrude settings at module level
 const TIE_SHAPE = new THREE.Shape();
 TIE_SHAPE.moveTo(-0.02, 0.08);
 TIE_SHAPE.lineTo(0.02, 0.08);
@@ -54,148 +52,127 @@ const TIE_EXTRUDE_SETTINGS = {
 };
 
 // ── Glasses dimensions ──
-const LENS_RADIUS = 0.15;     // Oversized round lenses
-const RIM_THICKNESS = 0.03;   // Thick chunky black rims
-const LENS_OFFSET = 0.16;     // Horizontal offset — tracks EYE_X so lenses sit over the pupils
-const LENS_DEPTH = 0.05;      // Forward of the group origin; clears the eye decals at FACE_Z + 0.05
+const LENS_RADIUS = 0.14;
+const RIM_THICKNESS = 0.025;
+const LENS_OFFSET = 0.15;
+const LENS_DEPTH = 0.02;
 const FRAME_OUTER_X = LENS_OFFSET + LENS_RADIUS + RIM_THICKNESS;
-const TEMPLE_X = BODY_RADIUS + 0.01; // Just proud of the head so the arms stay visible
+const TEMPLE_X = BODY_RADIUS + 0.01;
 
-/**
- * One lens assembly. The whole frame lies in the XY plane facing +Z, matching
- * the flat eye decals it covers — the meshes below are deliberately unrotated
- * except the convex cap, which is a hemisphere aimed down its own +Y.
- */
-function Lens({ side }) {
+function Lens({ side, style = 'classic' }) {
+  const isSunglasses = style === 'sunglasses';
+  const isSquare = style === 'square';
+  const rimColor = isSunglasses ? '#d4af37' : '#0a0a0a';
+  const lensColor = isSunglasses ? '#111827' : '#e8f4ff';
+  const lensOpacity = isSunglasses ? 0.88 : 0.4;
+  const lensTransmission = isSunglasses ? 0.1 : 0.85;
+
   return (
     <group position={[side * LENS_OFFSET, 0, LENS_DEPTH]}>
-      {/* Thick black rim */}
+      {/* Outer Rim */}
       <mesh castShadow>
-        <torusGeometry args={[LENS_RADIUS, RIM_THICKNESS, 16, 32]} />
-        <meshStandardMaterial color="#0a0a0a" roughness={0.75} metalness={0.2} />
+        {isSquare ? (
+          <boxGeometry args={[LENS_RADIUS * 2 + 0.02, LENS_RADIUS * 1.6, RIM_THICKNESS]} />
+        ) : (
+          <torusGeometry args={[LENS_RADIUS, RIM_THICKNESS, 16, 32]} />
+        )}
+        <meshStandardMaterial color={rimColor} roughness={0.4} metalness={isSunglasses ? 0.9 : 0.2} />
       </mesh>
-      {/* Inner rim edge (gives depth to the frame) */}
-      <mesh>
-        <torusGeometry args={[LENS_RADIUS - RIM_THICKNESS * 0.5, RIM_THICKNESS * 0.4, 12, 32]} />
-        <meshStandardMaterial color="#1a1a1a" roughness={0.9} />
-      </mesh>
-      {/* Convex glass — flattened hemisphere bulging forward for the bottle-bottom look */}
+      {/* Inner Lens Glass */}
       <mesh rotation={[Math.PI / 2, 0, 0]} scale={[1, 0.45, 1]}>
-        <sphereGeometry args={[LENS_RADIUS - 0.005, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2]} />
+        {isSquare ? (
+          <boxGeometry args={[LENS_RADIUS * 1.8, LENS_RADIUS * 1.4, 0.02]} />
+        ) : (
+          <sphereGeometry args={[LENS_RADIUS - 0.005, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2]} />
+        )}
         <meshPhysicalMaterial
-          color="#e8f4ff"
+          color={lensColor}
           transparent
-          opacity={0.4}
-          transmission={0.85}
-          thickness={5.0}
+          opacity={lensOpacity}
+          transmission={lensTransmission}
+          thickness={3.0}
           roughness={0.02}
-          ior={1.8}
-          metalness={0.0}
+          ior={1.5}
+          metalness={isSunglasses ? 0.2 : 0.0}
           clearcoat={1.0}
           clearcoatRoughness={0.0}
-          envMapIntensity={1.2}
           side={2}
         />
       </mesh>
-      {/* Rear flat lens cap — seals the lens volume */}
-      <mesh position={[0, 0, -0.008]}>
-        <circleGeometry args={[LENS_RADIUS - 0.005, 32]} />
-        <meshPhysicalMaterial
-          color="#dceeff"
-          transparent
-          opacity={0.3}
-          transmission={0.85}
-          thickness={3.0}
-          roughness={0.05}
-          ior={1.8}
-          clearcoat={1.0}
-          side={2}
-        />
-      </mesh>
-      {/* Specular highlight ring — icy glint on thick glass */}
-      <mesh position={[0, 0, 0.03]}>
-        <ringGeometry args={[LENS_RADIUS * 0.3, LENS_RADIUS * 0.6, 32]} />
+      {/* Specular Glint */}
+      <mesh position={[0, 0, 0.02]}>
+        <ringGeometry args={[LENS_RADIUS * 0.3, LENS_RADIUS * 0.55, 32]} />
         <meshStandardMaterial
           color="#ffffff"
           transparent
-          opacity={0.15}
-          emissive="#aaccff"
-          emissiveIntensity={0.4}
+          opacity={0.2}
+          emissive="#ffffff"
+          emissiveIntensity={0.3}
         />
       </mesh>
     </group>
   );
 }
 
-/** Hinge block + temple arm + ear hook for one side. */
-function Temple({ side }) {
+function Temple({ side, color = '#0a0a0a' }) {
   const hingeSpan = TEMPLE_X - FRAME_OUTER_X + 0.02;
   return (
     <group>
-      {/* Hinge connector bridging the rim to the temple arm */}
       <mesh position={[side * (FRAME_OUTER_X + hingeSpan / 2 - 0.01), 0, LENS_DEPTH]}>
-        <boxGeometry args={[hingeSpan, 0.04, 0.035]} />
-        <meshStandardMaterial color="#222" metalness={0.6} roughness={0.3} />
+        <boxGeometry args={[hingeSpan, 0.035, 0.03]} />
+        <meshStandardMaterial color={color} metalness={0.6} roughness={0.3} />
       </mesh>
-      {/* Temple arm running back along the side of the head */}
       <mesh position={[side * TEMPLE_X, 0, LENS_DEPTH - 0.16]}>
-        <boxGeometry args={[0.035, 0.045, 0.32]} />
-        <meshStandardMaterial color="#0a0a0a" roughness={0.75} metalness={0.15} />
+        <boxGeometry args={[0.03, 0.035, 0.32]} />
+        <meshStandardMaterial color={color} roughness={0.7} metalness={0.2} />
       </mesh>
-      {/* Ear hook curling down behind the ear */}
-      <mesh position={[side * TEMPLE_X, -0.06, LENS_DEPTH - 0.30]} rotation={[0.5, 0, 0]}>
-        <boxGeometry args={[0.035, 0.1, 0.035]} />
-        <meshStandardMaterial color="#0a0a0a" roughness={0.75} metalness={0.15} />
+      <mesh position={[side * TEMPLE_X, -0.05, LENS_DEPTH - 0.30]} rotation={[0.4, 0, 0]}>
+        <boxGeometry args={[0.03, 0.09, 0.03]} />
+        <meshStandardMaterial color={color} roughness={0.7} metalness={0.2} />
       </mesh>
     </group>
   );
 }
 
-/**
- * ProceduralHats built as exact parametric solids
- * adhering to the /threejs workflow guidelines.
- */
 export function ProceduralHat({ type, mainColor, accentColor }) {
   if (!type || type === 'none') return null;
 
-  // Top Hat — brim rests on the curve of the skull, crown rises above it
+  // Top Hat
   if (type === 'top_hat') {
     return (
       <group position={[0, BRIM_Y, 0]}>
-        {/* Brim */}
         <mesh position={[0, 0, 0]} castShadow>
           <cylinderGeometry args={[0.55, 0.55, 0.05, 32]} />
-          <meshStandardMaterial color={mainColor || '#111'} roughness={0.9} />
+          <meshStandardMaterial color={mainColor || '#111827'} roughness={0.4} metalness={0.1} />
         </mesh>
-        {/* Crown */}
         <mesh position={[0, 0.32, 0]} castShadow>
           <cylinderGeometry args={[BRIM_HEAD_RADIUS + 0.02, BRIM_HEAD_RADIUS + 0.02, 0.6, 32]} />
-          <meshStandardMaterial color={mainColor || '#111'} roughness={0.9} />
+          <meshStandardMaterial color={mainColor || '#111827'} roughness={0.4} metalness={0.1} />
         </mesh>
-        {/* Hat Band */}
         <mesh position={[0, 0.07, 0]} castShadow>
           <cylinderGeometry args={[BRIM_HEAD_RADIUS + 0.03, BRIM_HEAD_RADIUS + 0.03, 0.1, 32]} />
           <meshStandardMaterial color={accentColor || '#ef4444'} roughness={0.5} />
+        </mesh>
+        <mesh position={[0, 0.07, BRIM_HEAD_RADIUS + 0.035]} castShadow>
+          <boxGeometry args={[0.08, 0.08, 0.02]} />
+          <meshStandardMaterial color="#d4af37" metalness={0.9} roughness={0.2} />
         </mesh>
       </group>
     );
   }
 
-  // Baseball Cap — dome shells the head's own dome
+  // Baseball Cap
   if (type === 'cap') {
     return (
       <group position={[0, HEAD_CENTER_Y, 0]}>
-        {/* Dome (half sphere) */}
         <mesh position={[0, 0, 0]} castShadow>
           <sphereGeometry args={[BODY_RADIUS + 0.02, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2]} />
           <meshStandardMaterial color={mainColor || '#3b82f6'} roughness={0.7} />
         </mesh>
-        {/* Visor */}
-        <mesh position={[0, 0.02, 0.26]} rotation={[-0.1, 0, 0]} scale={[1, 0.15, 1]} castShadow>
-          <sphereGeometry args={[0.4]} />
+        <mesh position={[0, 0.02, 0.28]} rotation={[-0.15, 0, 0]} scale={[1, 0.12, 1.2]} castShadow>
+          <sphereGeometry args={[0.38]} />
           <meshStandardMaterial color={mainColor || '#3b82f6'} roughness={0.7} />
         </mesh>
-        {/* Top Button */}
         <mesh position={[0, BODY_RADIUS + 0.02, 0]} castShadow>
           <sphereGeometry args={[0.04, 16, 16]} />
           <meshStandardMaterial color={accentColor || '#1e293b'} roughness={0.7} />
@@ -204,37 +181,34 @@ export function ProceduralHat({ type, mainColor, accentColor }) {
     );
   }
 
-  // Crown — band rides the skull, spikes clear the top of the head
+  // Crown
   if (type === 'crown') {
     const bandRadius = BRIM_HEAD_RADIUS + 0.02;
     return (
       <group position={[0, BRIM_Y, 0]}>
-        {/* Crown Base */}
         <mesh position={[0, 0.08, 0]} castShadow>
-          <cylinderGeometry args={[bandRadius, bandRadius - 0.03, 0.2, 16, 1, true]} />
-          <meshStandardMaterial color="#fbbf24" metalness={0.8} roughness={0.2} side={2} />
+          <cylinderGeometry args={[bandRadius, bandRadius - 0.02, 0.18, 16, 1, true]} />
+          <meshStandardMaterial color="#fbbf24" metalness={0.9} roughness={0.15} side={2} />
         </mesh>
-        {/* Spikes */}
         {Array.from({ length: 8 }).map((_, i) => {
           const angle = (i / 8) * Math.PI * 2;
           const x = Math.cos(angle) * bandRadius;
           const z = Math.sin(angle) * bandRadius;
           return (
-            <mesh key={i} position={[x, 0.28, z]} rotation={[0.1, -angle, 0]} castShadow>
-              <coneGeometry args={[0.08, 0.25, 4]} />
-              <meshStandardMaterial color="#fbbf24" metalness={0.8} roughness={0.2} />
+            <mesh key={i} position={[x, 0.26, z]} rotation={[0.1, -angle, 0]} castShadow>
+              <coneGeometry args={[0.07, 0.22, 4]} />
+              <meshStandardMaterial color="#fbbf24" metalness={0.9} roughness={0.15} />
             </mesh>
           );
         })}
-        {/* Jewels */}
         {Array.from({ length: 4 }).map((_, i) => {
           const angle = (i / 4) * Math.PI * 2 + Math.PI / 4;
-          const x = Math.cos(angle) * (bandRadius + 0.01);
-          const z = Math.sin(angle) * (bandRadius + 0.01);
+          const x = Math.cos(angle) * (bandRadius + 0.015);
+          const z = Math.sin(angle) * (bandRadius + 0.015);
           return (
             <mesh key={i} position={[x, 0.08, z]} rotation={[0, -angle, 0]} castShadow>
-              <sphereGeometry args={[0.04, 8, 8]} />
-              <meshStandardMaterial color={accentColor || '#ef4444'} roughness={0.1} metalness={0.5} />
+              <sphereGeometry args={[0.045, 12, 12]} />
+              <meshStandardMaterial color={i % 2 === 0 ? '#ef4444' : '#10b981'} roughness={0.1} metalness={0.8} />
             </mesh>
           );
         })}
@@ -242,133 +216,206 @@ export function ProceduralHat({ type, mainColor, accentColor }) {
     );
   }
 
-  // Beanie — knitted shell pulled down over the dome
+  // Beanie
   if (type === 'beanie') {
     return (
       <group position={[0, HEAD_CENTER_Y, 0]}>
-        {/* Main Body */}
         <mesh position={[0, 0.02, 0]} scale={[1, 1.15, 1]} castShadow>
           <sphereGeometry args={[BODY_RADIUS + 0.02, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2]} />
-          <meshStandardMaterial color={mainColor || '#f59e0b'} roughness={0.9} />
+          <meshStandardMaterial color={mainColor || '#f59e0b'} roughness={0.95} />
         </mesh>
-        {/* Folded edge */}
         <mesh position={[0, 0.02, 0]} castShadow>
-          <torusGeometry args={[BODY_RADIUS + 0.01, 0.07, 16, 32]} />
-          <meshStandardMaterial color={mainColor || '#f59e0b'} roughness={0.9} />
+          <torusGeometry args={[BODY_RADIUS + 0.015, 0.07, 16, 32]} />
+          <meshStandardMaterial color={mainColor || '#f59e0b'} roughness={0.95} />
         </mesh>
-        {/* Pom pom */}
         <mesh position={[0, BODY_RADIUS + 0.16, 0]} castShadow>
           <sphereGeometry args={[0.12, 16, 16]} />
-          <meshStandardMaterial color={accentColor || '#fff'} roughness={0.9} />
+          <meshStandardMaterial color={accentColor || '#ffffff'} roughness={0.9} />
         </mesh>
       </group>
     );
   }
 
-  // Glasses — goofy bottlecap frames sitting flat on the eye line.
-  // The group carries only a slight pantoscopic tilt; the lenses themselves
-  // face straight forward so they line up with the flat eye decals behind them.
-  if (type === 'glasses') {
+  // Cowboy Hat
+  if (type === 'cowboy_hat') {
     return (
-      <group position={[0, FACE_Y, FACE_Z + 0.02]} rotation={[-0.08, 0, 0]}>
-        <Lens side={-1} />
-        <Lens side={1} />
-
-        {/* Bridge — thick chunky nose piece */}
-        <mesh position={[0, -0.02, LENS_DEPTH]}>
-          <boxGeometry args={[LENS_OFFSET * 2 - LENS_RADIUS * 2 + 0.07, 0.05, 0.04]} />
-          <meshStandardMaterial color="#0a0a0a" roughness={0.75} metalness={0.15} />
+      <group position={[0, BRIM_Y + 0.02, 0]}>
+        <mesh position={[0, 0, 0]} scale={[1.25, 0.2, 1.3]} rotation={[0.05, 0, 0]} castShadow>
+          <sphereGeometry args={[0.5, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2]} />
+          <meshStandardMaterial color={mainColor || '#78350f'} roughness={0.8} />
         </mesh>
-        {/* Bridge arch (rounded top) */}
-        <mesh position={[0, 0.01, LENS_DEPTH]}>
-          <torusGeometry args={[0.04, 0.022, 8, 16, Math.PI]} />
-          <meshStandardMaterial color="#0a0a0a" roughness={0.85} />
+        <mesh position={[0, 0.18, 0]} scale={[0.85, 1, 0.9]} castShadow>
+          <cylinderGeometry args={[0.3, 0.35, 0.35, 32]} />
+          <meshStandardMaterial color={mainColor || '#78350f'} roughness={0.8} />
         </mesh>
-
-        <Temple side={-1} />
-        <Temple side={1} />
+        <mesh position={[0, 0.06, 0]} castShadow>
+          <torusGeometry args={[0.35, 0.03, 16, 32]} />
+          <meshStandardMaterial color={accentColor || '#451a03'} roughness={0.9} />
+        </mesh>
       </group>
     );
   }
 
-  // Headset — band arcs clear of the crown, earcups grip the ear line
+  // Fedora
+  if (type === 'fedora') {
+    return (
+      <group position={[0, BRIM_Y, 0]} rotation={[0.05, 0, 0]}>
+        <mesh position={[0, 0, 0]} scale={[1.2, 0.15, 1.25]} castShadow>
+          <cylinderGeometry args={[0.48, 0.48, 0.04, 32]} />
+          <meshStandardMaterial color={mainColor || '#1e293b'} roughness={0.7} />
+        </mesh>
+        <mesh position={[0, 0.18, 0]} castShadow>
+          <cylinderGeometry args={[0.3, 0.34, 0.35, 32]} />
+          <meshStandardMaterial color={mainColor || '#1e293b'} roughness={0.7} />
+        </mesh>
+        <mesh position={[0, 0.06, 0]} castShadow>
+          <cylinderGeometry args={[0.345, 0.345, 0.08, 32]} />
+          <meshStandardMaterial color={accentColor || '#ef4444'} roughness={0.5} />
+        </mesh>
+      </group>
+    );
+  }
+
+  // Hard Hat
+  if (type === 'hard_hat') {
+    return (
+      <group position={[0, HEAD_CENTER_Y, 0]}>
+        <mesh position={[0, 0.02, 0]} scale={[1, 0.9, 1]} castShadow>
+          <sphereGeometry args={[BODY_RADIUS + 0.03, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2]} />
+          <meshStandardMaterial color="#facc15" roughness={0.3} metalness={0.2} />
+        </mesh>
+        <mesh position={[0, 0.02, 0.22]} rotation={[-0.1, 0, 0]} scale={[1.1, 0.1, 0.8]} castShadow>
+          <cylinderGeometry args={[0.38, 0.38, 0.04, 32]} />
+          <meshStandardMaterial color="#facc15" roughness={0.3} metalness={0.2} />
+        </mesh>
+        <mesh position={[0, BODY_RADIUS + 0.01, 0]} scale={[0.12, 0.06, 0.7]} castShadow>
+          <boxGeometry args={[1, 1, 1]} />
+          <meshStandardMaterial color="#eab308" roughness={0.3} />
+        </mesh>
+      </group>
+    );
+  }
+
+  // Wizard Hat
+  if (type === 'wizard_hat') {
+    return (
+      <group position={[0, BRIM_Y, 0]}>
+        <mesh position={[0, 0, 0]} castShadow>
+          <cylinderGeometry args={[0.55, 0.55, 0.04, 32]} />
+          <meshStandardMaterial color="#4c1d95" roughness={0.6} />
+        </mesh>
+        <mesh position={[0, 0.45, 0]} rotation={[0.05, 0, -0.05]} castShadow>
+          <coneGeometry args={[0.35, 0.9, 32]} />
+          <meshStandardMaterial color="#5b21b6" roughness={0.6} />
+        </mesh>
+        <mesh position={[0, 0.08, 0]} castShadow>
+          <cylinderGeometry args={[0.36, 0.36, 0.1, 32]} />
+          <meshStandardMaterial color="#fbbf24" metalness={0.8} roughness={0.2} />
+        </mesh>
+      </group>
+    );
+  }
+
+  // Party Hat
+  if (type === 'party_hat') {
+    return (
+      <group position={[0, HEAD_TOP_Y - 0.05, 0]}>
+        <mesh position={[0, 0.25, 0]} castShadow>
+          <coneGeometry args={[0.2, 0.5, 32]} />
+          <meshStandardMaterial color={mainColor || '#ec4899'} roughness={0.4} />
+        </mesh>
+        <mesh position={[0, 0.52, 0]} castShadow>
+          <sphereGeometry args={[0.06, 16, 16]} />
+          <meshStandardMaterial color={accentColor || '#facc15'} roughness={0.9} />
+        </mesh>
+      </group>
+    );
+  }
+
+  // Glasses / Sunglasses / Square Glasses
+  if (type === 'glasses' || type === 'sunglasses' || type === 'square_glasses') {
+    const style = type === 'sunglasses' ? 'sunglasses' : type === 'square_glasses' ? 'square' : 'classic';
+    const frameColor = style === 'sunglasses' ? '#d4af37' : '#0a0a0a';
+    return (
+      <group position={[0, FACE_Y, FACE_Z + 0.02]} rotation={[-0.05, 0, 0]}>
+        <Lens side={-1} style={style} />
+        <Lens side={1} style={style} />
+
+        <mesh position={[0, 0, LENS_DEPTH]}>
+          <boxGeometry args={[LENS_OFFSET * 2 - LENS_RADIUS * 2 + 0.05, 0.04, 0.03]} />
+          <meshStandardMaterial color={frameColor} roughness={0.5} metalness={style === 'sunglasses' ? 0.9 : 0.2} />
+        </mesh>
+
+        <Temple side={-1} color={frameColor} />
+        <Temple side={1} color={frameColor} />
+      </group>
+    );
+  }
+
+  // Headset
   if (type === 'headset') {
     const bandRadius = 0.45;
     const bandCenterY = HEAD_CENTER_Y - 0.02;
     return (
       <group position={[0, 0, 0]}>
-        {/* Band */}
         <mesh position={[0, bandCenterY, 0]}>
           <torusGeometry args={[bandRadius, 0.04, 16, 32, Math.PI]} />
-          <meshStandardMaterial color="#111" roughness={0.8} />
+          <meshStandardMaterial color="#1e293b" roughness={0.6} metalness={0.5} />
         </mesh>
-        {/* Left Earcup */}
         <mesh position={[-EAR_X, EAR_Y, 0]} rotation={[0, Math.PI / 2, 0]}>
           <cylinderGeometry args={[0.15, 0.15, 0.08, 32]} />
-          <meshStandardMaterial color={mainColor || '#111'} />
+          <meshStandardMaterial color={mainColor || '#0f172a'} roughness={0.5} metalness={0.4} />
         </mesh>
         <mesh position={[-(EAR_X - 0.04), EAR_Y, 0]} rotation={[0, Math.PI / 2, 0]}>
           <torusGeometry args={[0.12, 0.04, 16, 32]} />
-          <meshStandardMaterial color="#222" />
+          <meshStandardMaterial color="#334155" roughness={0.9} />
         </mesh>
-        {/* Right Earcup */}
         <mesh position={[EAR_X, EAR_Y, 0]} rotation={[0, Math.PI / 2, 0]}>
           <cylinderGeometry args={[0.15, 0.15, 0.08, 32]} />
-          <meshStandardMaterial color={mainColor || '#111'} />
+          <meshStandardMaterial color={mainColor || '#0f172a'} roughness={0.5} metalness={0.4} />
         </mesh>
         <mesh position={[EAR_X - 0.04, EAR_Y, 0]} rotation={[0, Math.PI / 2, 0]}>
           <torusGeometry args={[0.12, 0.04, 16, 32]} />
-          <meshStandardMaterial color="#222" />
+          <meshStandardMaterial color="#334155" roughness={0.9} />
         </mesh>
-        {/* Mic boom */}
         <mesh position={[-(EAR_X + 0.02), EAR_Y - 0.1, 0.15]} rotation={[Math.PI / 4, 0, 0]}>
-          <cylinderGeometry args={[0.01, 0.01, 0.25, 8]} />
-          <meshStandardMaterial color="#111" />
+          <cylinderGeometry args={[0.012, 0.012, 0.25, 8]} />
+          <meshStandardMaterial color="#0f172a" metalness={0.6} />
         </mesh>
-        {/* Mic tip */}
         <mesh position={[-(EAR_X + 0.02), EAR_Y - 0.2, 0.25]}>
           <sphereGeometry args={[0.04, 12, 12]} />
-          <meshStandardMaterial color={accentColor || '#3b82f6'} />
+          <meshStandardMaterial color={accentColor || '#38bdf8'} roughness={0.2} emissive="#0284c7" emissiveIntensity={0.5} />
         </mesh>
       </group>
     );
   }
 
-  // Tie — collar rings the neck, the rest hangs down the chest
+  // Tie (Windsor Necktie)
   if (type === 'tie') {
-    const chestZ = BODY_RADIUS - 0.02;
+    const chestZ = BODY_RADIUS - 0.01;
     return (
       <group>
-        {/* Collar band. Centred on the body AXIS (not pushed forward with the
-            rest of the tie) so it wraps the neck instead of floating in front.
-            The X rotation sweeps the arc from +X through +Z to -X, so a half
-            torus covers the front of the chest and leaves the back bare. */}
         <mesh position={[0, CHEST_Y + 0.15, 0]} rotation={[Math.PI / 2, 0, 0]}>
           <torusGeometry args={[BODY_RADIUS + 0.005, 0.028, 8, 32, Math.PI]} />
           <meshStandardMaterial color="#ffffff" roughness={0.85} />
         </mesh>
 
         <group position={[0, CHEST_Y + 0.1, chestZ]} rotation={[0.05, 0, 0]}>
-          {/* Left Collar Flap / Lapel */}
           <mesh position={[-0.08, 0.02, 0.015]} rotation={[0.15, 0.12, -0.45]}>
             <boxGeometry args={[0.16, 0.07, 0.02]} />
             <meshStandardMaterial color="#ffffff" roughness={0.85} />
           </mesh>
 
-          {/* Right Collar Flap / Lapel */}
           <mesh position={[0.08, 0.02, 0.015]} rotation={[0.15, -0.12, 0.45]}>
             <boxGeometry args={[0.16, 0.07, 0.02]} />
             <meshStandardMaterial color="#ffffff" roughness={0.85} />
           </mesh>
 
-          {/* Windsor Knot (3D tapered pentagonal prism) */}
           <mesh position={[0, -0.03, 0.025]} rotation={[0.1, 0, 0]} castShadow>
             <cylinderGeometry args={[0.045, 0.032, 0.065, 5]} />
             <meshStandardMaterial color={accentColor || '#ef4444'} roughness={0.65} />
           </mesh>
 
-          {/* Extruded Tie Body — TIE_SHAPE spans y +0.08 … -0.34, so this
-              offset tucks its top edge inside the knot above it. */}
           <group position={[0, -0.09, 0.01]}>
             <mesh castShadow receiveShadow>
               <extrudeGeometry args={[TIE_SHAPE, TIE_EXTRUDE_SETTINGS]} />
@@ -376,12 +423,36 @@ export function ProceduralHat({ type, mainColor, accentColor }) {
             </mesh>
           </group>
 
-          {/* Shiny Gold Tie Clip */}
           <mesh position={[0.018, -0.19, 0.03]} rotation={[0.1, 0, -0.05]} castShadow>
             <boxGeometry args={[0.05, 0.012, 0.015]} />
             <meshStandardMaterial color="#fbbf24" metalness={0.95} roughness={0.1} />
           </mesh>
         </group>
+      </group>
+    );
+  }
+
+  // Bowtie
+  if (type === 'bowtie') {
+    const chestZ = BODY_RADIUS - 0.01;
+    return (
+      <group position={[0, CHEST_Y + 0.12, chestZ + 0.02]}>
+        <mesh position={[0, 0.02, -0.02]} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[BODY_RADIUS + 0.005, 0.02, 8, 32, Math.PI]} />
+          <meshStandardMaterial color="#ffffff" roughness={0.85} />
+        </mesh>
+        <mesh position={[-0.07, 0, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
+          <coneGeometry args={[0.05, 0.12, 4]} />
+          <meshStandardMaterial color={accentColor || '#ef4444'} roughness={0.6} />
+        </mesh>
+        <mesh position={[0.07, 0, 0]} rotation={[0, 0, -Math.PI / 2]} castShadow>
+          <coneGeometry args={[0.05, 0.12, 4]} />
+          <meshStandardMaterial color={accentColor || '#ef4444'} roughness={0.6} />
+        </mesh>
+        <mesh castShadow position={[0, 0, 0.01]}>
+          <boxGeometry args={[0.035, 0.045, 0.03]} />
+          <meshStandardMaterial color={accentColor || '#ef4444'} roughness={0.5} />
+        </mesh>
       </group>
     );
   }
