@@ -61,10 +61,14 @@ export function SceneLayout({
 
   return (
     <>
-      {/* Environment map — gives metallic surfaces something to reflect.
-          Using "city" preset at low intensity so it doesn't overpower our
-          custom SkyDome but still lights up the floor and columns. */}
-      <Environment preset="city" environmentIntensity={0.35} />
+      {/* Local environment reflections — gives metallic surfaces reflections without fetching external CDN HDR files */}
+      <Environment environmentIntensity={0.35}>
+        <color attach="background" args={['#0f172a']} />
+        <mesh position={[0, 20, 0]} scale={[100, 100, 100]}>
+          <sphereGeometry />
+          <meshBasicMaterial color="#1e293b" side={THREE.BackSide} />
+        </mesh>
+      </Environment>
 
       {/* Lighting — tuned for a glass skyscraper at twilight */}
       <ambientLight intensity={0.8} color="#c8d8f0" />
