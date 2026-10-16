@@ -421,7 +421,7 @@ export default function OmniChat({ onCreateAgent, onRefreshRoster, onAgentSaved,
           .map(name =>
             name.startsWith('mcp__') || name.startsWith('domain:') || CORE_TOOL_NAMES.includes(name)
               ? name
-              : `mcp__lazy-tool-service__${name}`,
+              : `mcp__lazy-agent-service__${name}`,
           ),
         'discover_and_enable_tools',
         'enable_tools',

@@ -288,7 +288,7 @@ export function AgentDetailsSidebar({ agentId, agentColor, onClose, isRunning })
               if (!parsedAgentId || parsedAgentId.toLowerCase() !== agentId.toLowerCase()) return;
             }
             const tool = data.toolName || 'unknown';
-            const cleanTool = tool.replace('mcp__lazy-tool-service__', '');
+            const cleanTool = tool.replace(/^mcp__lazy-(agent|tool)-service__/, '');
             text = `🔧 Starting tool: ${cleanTool}`;
             type = 'tool-start';
             args = data.toolArgs || null;
@@ -299,7 +299,7 @@ export function AgentDetailsSidebar({ agentId, agentColor, onClose, isRunning })
               if (!parsedAgentId || parsedAgentId.toLowerCase() !== agentId.toLowerCase()) return;
             }
             const tool = data.toolName || 'unknown';
-            const cleanTool = tool.replace('mcp__lazy-tool-service__', '');
+            const cleanTool = tool.replace(/^mcp__lazy-(agent|tool)-service__/, '');
             const isError = data.status === 'error';
             text = isError ? `❌ Tool failed: ${cleanTool}` : `✅ Tool completed: ${cleanTool}`;
             type = isError ? 'error' : 'tool-success';
@@ -658,7 +658,7 @@ export function AgentDetailsSidebar({ agentId, agentColor, onClose, isRunning })
                       // TOOL CALLS & RESPONSES RENDERING
                       if (role === 'tool') {
                         const toolName = msg.name || 'unknown_tool';
-                        const cleanToolName = toolName.replace('mcp__lazy-tool-service__', '');
+                        const cleanToolName = toolName.replace(/^mcp__lazy-(agent|tool)-service__/, '');
                         return (
                           <div key={`msg-${index}`} className="agent-sidebar__message message-tool">
                             <details className="agent-sidebar__tool-details">
@@ -714,7 +714,7 @@ export function AgentDetailsSidebar({ agentId, agentColor, onClose, isRunning })
 
                           {/* Inline tool calls that assistant sent */}
                           {msg.toolCalls && msg.toolCalls.map((tc, tcIdx) => {
-                            const cleanTcName = tc.name.replace('mcp__lazy-tool-service__', '');
+                            const cleanTcName = tc.name.replace(/^mcp__lazy-(agent|tool)-service__/, '');
                             return (
                               <div key={`tc-${tcIdx}`} className="agent-sidebar__tool-call">
                                 <span className="icon">⚙️</span>
