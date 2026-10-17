@@ -41,8 +41,9 @@ const CASES = [
   ['analyzing', 'v3_shadow_AAPL', 'debate'],
 
   // Execution → Exec Office
-  ['trading', 'trade_executed_AAPL', 'inbox'],
-  ['trading', 'trade_rejected_AAPL', 'inbox'],
+  ['trading', 'trade_filled_AAPL', 'inbox'],
+  ['trading', 'trade_refused_AAPL', 'inbox'],
+  ['trading', 'trade_deferred_AAPL', 'inbox'],
 
   // Risk / gating / watch desk → Risk Mgmt
   ['analyzing', 'v3_policy_AAPL', 'error'],

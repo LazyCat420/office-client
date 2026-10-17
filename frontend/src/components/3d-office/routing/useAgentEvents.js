@@ -248,7 +248,7 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
     else if (kind === 'debate_verdict') soundManager.playSC(data.vetoed ? 'error' : 'success', { chance: 0.6, agentId: 'V3_DEBATE_JUDGE', reason: data.vetoed ? 'verdict: vetoed' : 'verdict delivered' });
     else if (kind === 'board_convened') soundManager.playSC('work', { chance: 0.5, agentId: 'V3_BOARD_OF_DIRECTORS', reason: 'board convening' });
     else if (kind === 'contradiction_shadow') soundManager.playSC('debate', { chance: 0.5, agentId: 'V3_DEBATE_JUDGE', reason: 'contradiction flagged' });
-    else if (kind === 'trade_executed') soundManager.playSC('success', { chance: 0.9, agentId: 'V3_PORTFOLIO_MANAGER', reason: 'trade executed' });
+    else if (kind === 'trade_filled') soundManager.playSC('success', { chance: 0.9, agentId: 'V3_PORTFOLIO_MANAGER', reason: 'trade executed' });
 
     // Spoken TTS — decision-makers only, throttled so the queue never backs up.
     if (!onVoiceEvent) return;
@@ -266,7 +266,7 @@ export function useAgentEvents(events, status, { onVoiceEvent } = {}) {
     } else if (kind === 'board_convened') {
       agentId = 'V3_BOARD_OF_DIRECTORS';
       quote = `Convening the board on ${ticker}${data.persona ? `. Chair: ${data.persona}` : ''}.`;
-    } else if (kind === 'trade_executed') {
+    } else if (kind === 'trade_filled') {
       agentId = 'V3_PORTFOLIO_MANAGER';
       quote = data.side && data.qty
         ? `${String(data.side).toUpperCase()} ${data.qty} ${ticker}. Order filled.`
