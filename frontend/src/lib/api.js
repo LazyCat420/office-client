@@ -86,8 +86,6 @@ export const addToWatchlist = (ticker, source = 'manual') =>
   request('/watchlist', { method: 'POST', body: JSON.stringify({ ticker, source }) });
 export const removeFromWatchlist = (ticker) =>
   request(`/watchlist/${ticker}`, { method: 'DELETE' });
-export const importDiscovery = (minScore = 50) =>
-  request('/watchlist/import', { method: 'POST', body: JSON.stringify({ min_score: minScore }) });
 export const pauseWatchlistTicker = (ticker) =>
   request(`/watchlist/${ticker}/pause`, { method: 'PATCH' });
 export const resumeWatchlistTicker = (ticker) =>
@@ -126,7 +124,6 @@ export async function getTrades(botId, limit = 50) {
   return data;
 }
 export const getEquityCurve = (botId, days = 30) => request(`/portfolio/history?days=${days}${botId ? `&bot_id=${botId}` : ''}`);
-export const takeSnapshot = (botId) => request(`/portfolio/snapshot${botId ? `?bot_id=${botId}` : ''}`, { method: 'POST' });
 export async function getPerformance(botId) {
   const url = `/portfolio/performance${botId ? `?bot_id=${botId}` : ''}`;
   console.log('[DEBUG][API] GET', url);
@@ -145,13 +142,8 @@ export async function getPerformance(botId) {
 // ── Broker Ledger ──
 export const getPositionLots = (ticker) => request(`/portfolio/lots${ticker ? `?ticker=${ticker}` : ''}`);
 export const getClosedLots = (ticker, limit = 50) => request(`/portfolio/lots/closed?limit=${limit}${ticker ? `&ticker=${ticker}` : ''}`);
-export const getTradeFills = (limit = 50) => request(`/portfolio/fills?limit=${limit}`);
 
 // ── Analysis ──
-export const analyzeTicker = (ticker) =>
-  request(`/analyze/${ticker}`, { method: 'POST', timeoutMs: 900_000 });
-export const getLatestAnalysis = (ticker) => request(`/analysis/${ticker}/latest`);
-export const getAnalysisHistory = (ticker) => request(`/analysis/${ticker}/history`);
 
 // ── Persistent Verdicts ──
 export const getLatestVerdicts = (limit = 100) => request(`/verdicts/latest?limit=${limit}`);
@@ -166,9 +158,6 @@ export const deleteTickerNote = (ticker) =>
   request(`/ticker-notes/${encodeURIComponent(ticker)}`, { method: 'DELETE' });
 
 // ── Discovery ──
-export const getDiscoveryResults = () => request('/discovery/results');
-export const getCongressReport = () => request('/discovery/congress');
-export const getFundReport = () => request('/discovery/funds');
 export const removeDiscoveredTicker = (ticker) =>
   request(`/discovery/${ticker}`, { method: 'DELETE' });
 export const getEnrichedDiscovery = (limit) =>
@@ -176,14 +165,8 @@ export const getEnrichedDiscovery = (limit) =>
 
 // ── Models ──
 export const getModels = () => request('/models');
-export const switchModel = (name, endpoint) =>
-  request('/models/switch', { method: 'POST', body: JSON.stringify({ model_name: name, endpoint }) });
 export const configureEndpoint = (endpoint, { enabled } = {}) =>
   request('/models/config', { method: 'POST', body: JSON.stringify({ endpoint, enabled }) });
-export const setModelLimit = (model_id, limit) =>
-  request('/models/limits', { method: 'POST', body: JSON.stringify({ model_id, limit }) });
-export const rediscoverEndpoints = () =>
-  request('/models/rediscover', { method: 'POST' });
 
 // ── Collaboration ──
 export const getUserNotes = (ticker) =>
@@ -198,8 +181,6 @@ export const createConstraint = (data) =>
   request('/user/constraints', { method: 'POST', body: JSON.stringify(data) });
 export const deleteConstraint = (id) =>
   request(`/user/constraints/${id}`, { method: 'DELETE' });
-export const chat = (message, ticker, webSearch = false, model = null, endpoint = null, history = [], images = null, agentName = null) =>
-  request('/chat', { method: 'POST', body: JSON.stringify({ message, ticker, web_search: webSearch, model, endpoint, history, images: images ? images.map(img => img.dataUri || img) : null, agent_name: agentName }), timeoutMs: 900_000 });
 
 /**
  * Streaming chat — reads SSE from /chat/stream.
@@ -354,7 +335,6 @@ export const updateSchedule = (id, data) => request(`/schedules/${id}`, { method
 export const deleteSchedule = (id) => request(`/schedules/${id}`, { method: 'DELETE' });
 export const deleteAllSchedules = () => request('/schedules/all', { method: 'DELETE' });
 export const toggleSchedule = (id, active) => request(`/schedules/${id}/toggle?active=${active}`, { method: 'POST' });
-export const getScheduleHistory = (limit = 50) => request(`/schedules/history?limit=${limit}`);
 export const getNextRuns = () => request('/schedules/next-runs');
 
 // ── Data Browser ──
@@ -371,8 +351,6 @@ export const browsePrices = (ticker, days = 10000) =>
 export const recentAnalyses = (limit = 20) =>
   request(`/data/analysis/recent?limit=${limit}`);
 export const getDataCounts = () => request('/data/counts');
-export const getDataAudit = (ticker) => request(`/data/audit/${ticker}`);
-export const getDataInventory = () => request('/data/inventory');
 export const getSectors = () => request('/data/sectors');
 export const deleteNewsItem = (id) => request(`/data/news/${id}`, { method: 'DELETE' });
 export const deleteRedditItem = (id) => request(`/data/reddit/${id}`, { method: 'DELETE' });
@@ -380,22 +358,14 @@ export const deleteYoutubeItem = (videoId) => request(`/data/youtube/${videoId}`
 
 // ── Sectors Dashboard ──
 export const getSectorHeatmap = () => request('/sectors/heatmap');
-export const getSectorCorrelations = (period = '30d') =>
-  request(`/sectors/correlations?period=${period}`);
 export const getInverseCorrelations = (period = '30d') =>
   request(`/sectors/correlations/inverse?period=${period}`);
-export const getSectorRotations = (limit = 10) =>
-  request(`/sectors/rotations?limit=${limit}`);
 export const getCommodityLinks = (commodity) =>
   request(`/sectors/commodity-links/${commodity}`);
-export const getSectorDivergences = (sector, minDiv = 3.0) =>
-  request(`/sectors/divergences/${sector}?min_divergence=${minDiv}`);
 export const getSectorStocks = (sector) =>
   request(`/sectors/${encodeURIComponent(sector)}/stocks`);
 export const refreshSectors = () =>
   request('/sectors/refresh', { method: 'POST' });
-export const collectFred = () =>
-  request('/sectors/collect-fred', { method: 'POST' });
 export const collectSP500 = (enrich = true, period = '6mo') =>
   request(`/sectors/collect?enrich=${enrich}&price_period=${period}`, { method: 'POST' });
 export const getUniverseStats = () => request('/sectors/universe/stats');
@@ -438,7 +408,6 @@ export const triggerTrackerBackfill = () =>
 
 // ── Cognition ──
 export const getCognitionLogs = (limit = 100) => request(`/cognition/logs?limit=${limit}`);
-export const getCognitionRejections = (limit = 50) => request(`/cognition/rejections?limit=${limit}`);
 export const getBrainGraph = (ticker) => request(`/cognition/graph${ticker ? `?ticker=${ticker}` : ''}`);
 export const activateBrainGraph = (ticker, maxHops = 3) =>
   request(`/cognition/graph/activate?ticker=${ticker}&max_hops=${maxHops}`, { method: 'POST' });
@@ -453,13 +422,10 @@ export const runAutoEvaluator = () => request(`/cognition/evaluations/auto`, { m
 // ── Strategy Audit ──
 export const getLatestStrategyAudit = () => request('/strategy/audit/latest');
 export const getAuditStatus = () => request('/strategy/audit/status');
-export const getStrategyAuditHistory = () => request('/strategy/audit/history');
 export const runStrategyAudit = () => request('/strategy/audit/run', { method: 'POST', timeoutMs: 900_000 });
 
 // ── Evolution (ASI-Evolve) ──
 export const getEvolutionSessions = () => request('/evolution/sessions');
-export const getEvolutionSession = (sessionId) => request(`/evolution/sessions/${sessionId}`);
-export const getEvolutionBest = (sessionId) => request(`/evolution/sessions/${sessionId}/best`);
 export const getEvolutionNodes = (sessionId, limit = 100) =>
   request(`/evolution/nodes?limit=${limit}${sessionId ? `&session_id=${sessionId}` : ''}`);
 export const getEvolutionLessons = (sessionId, limit = 50) =>
@@ -473,9 +439,6 @@ export const startCoralEvolution = () => request('/evolution/start', { method: '
 export const stopCoralEvolution = () => request('/evolution/stop', { method: 'POST' });
 
 // ── CORAL Recovery & Resilience ──
-export const getRecoveryOverview = () => request('/recovery/overview');
-export const getRecoveryStats = () => request('/recovery/stats');
-export const getRecoveryHistory = (limit = 50) => request(`/recovery/history?limit=${limit}`);
 export const getAgentRegistry = () => request('/recovery/agents');
 export const getCheckpointStats = () => request('/recovery/checkpoints');
 
@@ -521,7 +484,6 @@ export const resetBotProfile = (botId) =>
 // ── Tools Registry & Stats ──
 export const getToolRegistry = () => request('/tools');
 export const getToolStats = (hours = 24) => request(`/tools/stats?hours=${hours}`);
-export const getToolTimeline = (hours = 24) => request(`/tools/stats/timeline?hours=${hours}`);
 export const getRecentToolCalls = (toolName, limit = 50) =>
   request(`/tools/recent?limit=${limit}${toolName ? `&tool_name=${encodeURIComponent(toolName)}` : ''}`);
 
@@ -534,10 +496,8 @@ export const getMonitorQueue = () => request('/monitor/queue');
 export const getMonitorTelemetry = (hours = 48) => request(`/monitor/telemetry/charts?hours=${hours}`);
 
 // ── Node Health (per-box LLM endpoint status) ──
-export const getNodeHealth = () => request('/node-health');
 
 // ── Morning & Flash Briefings ──
-export const getMorningBriefing = () => request('/dashboard/morning-briefing/latest');
 export const triggerMorningBriefing = () => request('/dashboard/morning-briefing/generate', { method: 'POST', timeoutMs: 300_000 });
 export const getFlashBriefings = (limit = 10) => request(`/dashboard/flash-briefings/recent?limit=${limit}`);
 export const triggerFlashBriefing = () => request('/dashboard/flash-briefings/generate', { method: 'POST', timeoutMs: 300_000 });
