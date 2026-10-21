@@ -22,7 +22,6 @@ describe("cleanAgentId", () => {
 
   it("maps janitor variants to DATA_JANITOR", () => {
     expect(cleanAgentId("SYSTEM_JANITOR_AGENT")).toBe("DATA_JANITOR");
-    expect(cleanAgentId("DATA_JANITOR_CRITIC_AGENT")).toBe("DATA_JANITOR");
     expect(cleanAgentId("weekly_janitor_run")).toBe("DATA_JANITOR");
   });
 
@@ -35,8 +34,6 @@ describe("cleanAgentId", () => {
     expect(cleanAgentId("fundamental")).toBe("QUANT_RESEARCH_AGENT");
     expect(cleanAgentId("risk")).toBe("PRE_TRADE_RISK");
     expect(cleanAgentId("pm")).toBe("PORTFOLIO_ALLOCATOR");
-    expect(cleanAgentId("trader")).toBe("PORTFOLIO_ALLOCATOR");
-    expect(cleanAgentId("planner")).toBe("PLANNER");
   });
 
   it("normalizes worker agent names", () => {

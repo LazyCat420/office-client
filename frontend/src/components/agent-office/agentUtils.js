@@ -23,7 +23,7 @@ export function cleanAgentId(agentName) {
   // Strip common prefixes used by trading-service
   const clean = agentName.replace(/^CUSTOM_/, '').replace(/^DELEGATION_/, '');
 
-  if (clean === 'SYSTEM_JANITOR_AGENT' || clean === 'DATA_JANITOR_AGENT' || clean === 'DATA_JANITOR_CRITIC_AGENT' || clean.toLowerCase().includes('janitor')) {
+  if (clean === 'SYSTEM_JANITOR_AGENT' || clean === 'DATA_JANITOR_AGENT' || clean.toLowerCase().includes('janitor')) {
     return 'DATA_JANITOR';
   }
   if (clean === 'PRE_TRADE_AGENT') return 'PRE_TRADE_RISK';
@@ -36,10 +36,9 @@ export function cleanAgentId(agentName) {
   if (cleanLower === 'fundamental' || cleanLower === 'fundamental_agent') return 'QUANT_RESEARCH_AGENT';
   if (cleanLower === 'behavioral' || cleanLower === 'sentiment_agent') return 'BULLISH_DEBATER';
   if (cleanLower === 'risk') return 'PRE_TRADE_RISK';
-  if (cleanLower === 'pm' || cleanLower === 'portfolio_allocator' || cleanLower === 'trader') return 'PORTFOLIO_ALLOCATOR';
+  if (cleanLower === 'pm' || cleanLower === 'portfolio_allocator') return 'PORTFOLIO_ALLOCATOR';
   if (cleanLower === 'quant') return 'QUANT_RESEARCH_AGENT';
   
-  if (cleanLower === 'planner') return 'PLANNER';
   if (cleanLower === 'retriever') return 'RETRIEVER';
   if (cleanLower === 'verifier') return 'VERIFIER';
   if (cleanLower === 'synthesizer') return 'SYNTHESIZER';

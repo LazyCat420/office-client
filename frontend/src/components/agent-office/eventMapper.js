@@ -224,16 +224,8 @@ function extractAgentId(event) {
   
   // 5. Dynamic Agent Name Matching (for standard pipeline agents)
   const knownAgents = [
-    'cycle_trading_analyst',
     'fundamental_agent',
-    'sentiment_agent',
-    'trading_cycle_analysis_agent',
-    'technical_analysis_agent',
-    'market_alpha',
-    'retriever_agent',
-    'verifier_agent',
-    'synthesizer_agent',
-    'meta_audit_agent'
+    'sentiment_agent'
   ];
 
   for (const name of knownAgents) {

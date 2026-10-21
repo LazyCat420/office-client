@@ -55,7 +55,6 @@ function resolvePrismAgentId(agentName) {
     'quant_research_agent': 'CUSTOM_QUANT_RESEARCH_AGENT',
     // Technical analysis
     'technical': 'CUSTOM_TECHNICAL_ANALYSIS_AGENT',
-    'technical_analysis_agent': 'CUSTOM_TECHNICAL_ANALYSIS_AGENT',
     // Agent architect
     'agent': 'CUSTOM_AGENT_ARCHITECT',
     'agent_architect': 'CUSTOM_AGENT_ARCHITECT',
@@ -65,23 +64,11 @@ function resolvePrismAgentId(agentName) {
     // Debate — ALL debate conversations in Prism use CUSTOM_BULLISH_DEBATER (single bucket)
     'bullish_debater': 'CUSTOM_BULLISH_DEBATER',
     'bearish_debater': 'CUSTOM_BULLISH_DEBATER',
-    // Market alpha
-    'market_alpha': 'CUSTOM_MARKET_ALPHA',
     // Specialist agents
     'retriever': 'CUSTOM_RETRIEVER_AGENT',
-    'retriever_agent': 'CUSTOM_RETRIEVER_AGENT',
     'verifier': 'CUSTOM_VERIFIER_AGENT',
-    'verifier_agent': 'CUSTOM_VERIFIER_AGENT',
     'synthesizer': 'CUSTOM_SYNTHESIZER_AGENT',
-    'synthesizer_agent': 'CUSTOM_SYNTHESIZER_AGENT',
     'meta_audit': 'CUSTOM_META_AUDIT_AGENT',
-    'meta_audit_agent': 'CUSTOM_META_AUDIT_AGENT',
-    // Agents that have conversations in Prism but were previously missing
-    'trading_cycle_analysis_agent': 'CUSTOM_TRADING_CYCLE_ANALYSIS_AGENT',
-    'fundamental_agent': 'CUSTOM_FUNDAMENTAL_AGENT',
-    'sentiment_agent': 'CUSTOM_SENTIMENT_AGENT',
-    'macro_risk_agent': 'CUSTOM_MACRO_RISK_AGENT',
-    'post_cycle_learner_agent': 'CUSTOM_POST_CYCLE_LEARNER_AGENT',
     'portfolio_allocator': 'CUSTOM_TRADING_CYCLE_ANALYSIS_AGENT',
   };
 
