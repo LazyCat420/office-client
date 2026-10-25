@@ -71,7 +71,6 @@ async function request(path, opts = {}) {
   return null;
 }
 
-
 // ── Health ──
 export const getModelHealth = () => request('/models/health');
 export const getModelRoles = () => request('/models/roles');
@@ -313,10 +312,7 @@ export const getFreshness = () => request('/sources/freshness');
 // ── Pipeline ──
 export const runCycle = (tickers = [], collect = true, analyze = true, trade = false, maxTickers = null, discoveredTickers = null) =>
   request('/run-cycle', { method: 'POST', body: JSON.stringify({ tickers, collect, analyze, trade, max_tickers: maxTickers, discovered_tickers: discoveredTickers }), timeoutMs: 900_000 });
-export const getGlobalRegime = () => request('/global/regime');
-export const getConflictEvents = (limit = 500) => request(`/global/conflicts/events?limit=${limit}`);
 
-export const triggerGlobalCollection = () => request('/global/collect', { method: 'POST', timeoutMs: 900_000 });
 export const getCycleStatus = (summaryOnly) => request(`/run-cycle/status${summaryOnly ? '?summary_only=true' : ''}`);
 export const pauseCycle = () => request('/run-cycle/pause', { method: 'POST' });
 export const resumeCycle = () => request('/run-cycle/resume', { method: 'POST' });
@@ -358,8 +354,6 @@ export const deleteYoutubeItem = (videoId) => request(`/data/youtube/${videoId}`
 
 // ── Sectors Dashboard ──
 export const getSectorHeatmap = () => request('/sectors/heatmap');
-export const getInverseCorrelations = (period = '30d') =>
-  request(`/sectors/correlations/inverse?period=${period}`);
 export const getCommodityLinks = (commodity) =>
   request(`/sectors/commodity-links/${commodity}`);
 export const getSectorStocks = (sector) =>
@@ -440,7 +434,6 @@ export const stopCoralEvolution = () => request('/evolution/stop', { method: 'PO
 
 // ── CORAL Recovery & Resilience ──
 export const getAgentRegistry = () => request('/recovery/agents');
-export const getCheckpointStats = () => request('/recovery/checkpoints');
 
 // ── AutoResearch ──
 export const getLatestAutoresearch = () => request('/autoresearch/latest');
@@ -451,12 +444,6 @@ export const runAutoresearch = () => request('/autoresearch/run', { method: 'POS
 
 // ── Pending Evolution Fixes ──
 export const getPendingFixes = (status = 'all', limit = 50) => request(`/autoresearch/fixes?status=${status}&limit=${limit}`);
-export const approveFix = (fixId) => request(`/autoresearch/fixes/${fixId}/approve`, { method: 'POST' });
-export const rejectFix = (fixId) => request(`/autoresearch/fixes/${fixId}/reject`, { method: 'POST' });
-export const deployFix = (fixId) => request(`/autoresearch/fixes/${fixId}/deploy`, { method: 'POST' });
-export const rollbackFix = (fixId) => request(`/autoresearch/fixes/${fixId}/rollback`, { method: 'POST' });
-export const getSubsystemTrends = (limit = 10) => request(`/autoresearch/benchmarks/subsystems?limit=${limit}`);
-export const getDeadEnds = (limit = 20) => request(`/autoresearch/dead-ends?limit=${limit}`);
 
 // ── Layout Presets (cross-browser sync) ──
 export const getLayoutPresets = () => request('/layout/presets');
@@ -490,8 +477,6 @@ export const getRecentToolCalls = (toolName, limit = 50) =>
 // ── Monitoring ──
 export const getMonitorStats = () => request('/monitor/stats');
 export const getMonitorCalls = (limit = 50, agent = null) => request(`/monitor/calls?limit=${limit}${agent ? `&agent=${agent}` : ''}`);
-export const getMonitorCallDetail = (callId) => request(`/monitor/calls/${callId}`);
-export const getMonitorAgents = () => request('/monitor/agents');
 export const getMonitorQueue = () => request('/monitor/queue');
 export const getMonitorTelemetry = (hours = 48) => request(`/monitor/telemetry/charts?hours=${hours}`);
 
@@ -543,15 +528,9 @@ export const getTickerReport = (cycleId, ticker) => request(`/reports/cycle/${en
 export const deleteCycleReports = (cycleId) => request(`/reports/cycle/${encodeURIComponent(cycleId)}`, { method: 'DELETE' });
 export const deleteTickerReport = (cycleId, ticker) => request(`/reports/cycle/${encodeURIComponent(cycleId)}/${encodeURIComponent(ticker)}`, { method: 'DELETE' });
 
-
 // ── Prism Settings ──
-export const getPrismSettings = () => request('/system/prism');
-export const setPrismSettings = (data) =>
-  request('/system/prism', { method: 'POST', body: JSON.stringify(data) });
 
 export const getActiveAgents = () => request('/agents/active');
-export const postAgentInbox = (agentName, message, ticker = null) =>
-  request(`/agents/${agentName}/inbox`, { method: 'POST', body: JSON.stringify({ message, ticker }) });
 
 // ── Agent Mention Context ──
 export async function getAgentContext(agentName, ticker = null) {

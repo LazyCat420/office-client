@@ -18,10 +18,6 @@ export const TOOL_TO_STATION = {
   get_technical_indicators: 'research',
   get_finviz_fundamentals: 'research',
   get_polygon_price_history: 'research',
-  get_sec_filings: 'research',
-  get_options_flow: 'research',
-  get_insider_trades: 'research',
-  get_congress_trades: 'research',
   get_earnings_data: 'research',
   search_wiki: 'research',
   query_hermes: 'research',
@@ -56,8 +52,6 @@ export const TOOL_TO_STATION = {
   get_cycle_context: 'desk',
   get_cycle_context_all: 'desk',
   calculate_stop_loss: 'desk',
-  calculate_position_size: 'desk',
-  calculate_risk_reward: 'desk',
   calculate_portfolio_allocation: 'desk',
   read_user_notes: 'desk',
   'LLM thinking': 'desk',
@@ -86,7 +80,6 @@ export const TOOL_TO_STATION = {
   whiteboard_write: 'debate',
   whiteboard_read: 'debate',
   whiteboard_annotate: 'debate',
-  whiteboard_summarize: 'debate',
 
   // ── Tool Bench (utility, config, schedules, triggers) ──
   create_or_update_schedule: 'tool_bench',
@@ -184,7 +177,6 @@ export const TOOL_TO_ANIM_VARIANT = {
   get_polygon_price_history: 1,  // comparing charts
   get_technical_indicators: 1,   // comparing charts
   get_finnhub_news: 0,           // shuffling papers (news articles)
-  get_sec_filings: 2,            // flipping book (filings)
   get_earnings_data: 0,          // shuffling papers
   search_wiki: 3,                // scanning doc
   query_hermes: 3,               // scanning doc
@@ -192,9 +184,6 @@ export const TOOL_TO_ANIM_VARIANT = {
   search_internal_database: 2,   // flipping book
   search_trading_skills: 2,      // flipping book
   get_finviz_fundamentals: 1,    // comparing charts
-  get_options_flow: 1,           // comparing charts
-  get_insider_trades: 0,         // shuffling papers
-  get_congress_trades: 0,        // shuffling papers
   request_investigation: 3,      // scanning doc
   check_open_investigations: 3,  // scanning doc
   youtube_test_channel: 3,       // scanning doc
@@ -217,8 +206,6 @@ export const TOOL_TO_ANIM_VARIANT = {
   llm_analysis: 2,               // hand signals
   synthesis: 4,                   // DANCING
   calculate_stop_loss: 0,        // yelling bid
-  calculate_position_size: 0,    // yelling bid
-  calculate_risk_reward: 0,      // yelling bid
   calculate_portfolio_allocation: 1, // throwing tickets
   write_memory_note: 3,          // jumping (excited to record)
   read_memory_note: 4,           // DANCING
@@ -252,7 +239,6 @@ export const TOOL_TO_ANIM_VARIANT = {
   whiteboard_write: 1,           // table slam
   whiteboard_read: 2,            // pacing
   whiteboard_annotate: 0,        // gesturing
-  whiteboard_summarize: 0,       // gesturing
 
   // ── Tool Bench ──
   create_or_update_schedule: 1,  // terminal
