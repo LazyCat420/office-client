@@ -1,6 +1,14 @@
-# HANDOFF — One audio channel (no more overlapping TTS) + per-agent sidebar data
+# HANDOFF — One audio channel (no more overlapping TTS) + per-agent sidebar data + Phase 8 `/lego` CRAP Decomposition (2026-10-28)
 
-**Status:** committed → pushed `origin/main` (e584f0d) → deployed to synology,
+## Latest Update (2026-10-28 — Phase 8 `/lego` CRAP Decomposition)
+
+- Decomposed all 16 functions in `office-client/frontend/src` that exceeded McCabe cyclomatic complexity 30 into focused helpers (`<= 15` complexity), reducing max complexity across `office-client/frontend/src` (619 functions across 13 files) to **28** (`0` functions `> 30`):
+  - `AgentDetailsSidebar.jsx`, `AgentOffice3D.jsx`, `Agent.jsx`, `AgentVisualRig.jsx`, `ProceduralHats.jsx`, `useAnimationLoop.js`, `useAgentEvents.js`, `eventMapper.js`, `AgentEditor.jsx`, `AgentStudio.jsx`, `OmniChat.jsx`, `ToolSelection.jsx`, `telemetryStore.ts`.
+- Verified with `vitest` (`134 passed`).
+
+---
+
+**Historical Status (2026-07-22):** committed → pushed `origin/main` (e584f0d) → deployed to synology,
 office-client live at http://10.0.0.16:3035 (HTTP 200) on 2026-07-22.
 `next build`-verified. Audio behavior not click-tested (needs a browser with
 the unmute gesture); the log/chat filtering was curl-verified against the live

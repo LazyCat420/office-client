@@ -129,13 +129,68 @@ function extractTicker(event) {
   return '';
 }
 
-function extractAgentId(event) {
-  // Prism-sourced events have structured category/action
+const V3_PIPELINE_ROSTER = [
+  'v3_regime_engine',
+  'v3_board_of_directors',
+  'v3_portfolio_manager',
+  'v3_decision_synthesizer',
+  'v3_debate_judge',
+  'fundamental_agent',
+  'sentiment_agent',
+];
+
+function extractPrismAgentId(event) {
   const source = event.source || event.meta?.source;
   const category = event.category || event.meta?.category;
   if (source === 'prism' && category) {
     return category.toUpperCase().replace(/-/g, '_');
   }
+  return null;
+}
+
+function anyTextIncludes(texts, keywords) {
+  return keywords.some(kw => texts.some(t => t.includes(kw)));
+}
+
+function matchSpecialRoleAgent(texts, stepDetailTexts, station) {
+  if (anyTextIncludes(texts, ['janitor', 'purge'])) {
+    return 'DATA_JANITOR';
+  }
+  if (anyTextIncludes(stepDetailTexts, ['risk', 'veto', 'pre_trade'])) {
+    return anyTextIncludes(stepDetailTexts, ['macro']) ? 'MACRO_RISK_AGENT' : 'PRE_TRADE_RISK';
+  }
+  if (anyTextIncludes(stepDetailTexts, ['allocator', 'allocation'])) {
+    return 'PORTFOLIO_ALLOCATOR';
+  }
+  if (station === 'debate') {
+    if (anyTextIncludes(texts, ['bear'])) return 'BEARISH_DEBATER';
+    if (anyTextIncludes(stepDetailTexts, ['team_findings'])) return 'TEAM_FINDINGS_AGENT';
+    return 'BULLISH_DEBATER';
+  }
+  if (anyTextIncludes(stepDetailTexts, ['orchestrator'])) return 'ORCHESTRATOR_AGENT';
+  if (anyTextIncludes(stepDetailTexts, ['v2_position'])) return 'POSITION_AGENT';
+  return null;
+}
+
+function matchCustomAgentOrWorker(stepLower, detailLower, station, ticker) {
+  const customRe = /([a-z0-9_]+_(?:agent|analyst))/;
+  const match = stepLower.match(customRe) || detailLower.match(customRe);
+  if (match) return match[1].toUpperCase();
+
+  if (station === 'research' && ticker) {
+    let hash = 0;
+    for (let i = 0; i < ticker.length; i++) {
+      hash += ticker.charCodeAt(i);
+    }
+    const workerId = (hash % 2) + 1;
+    return `QUANT_RESEARCH_AGENT_worker_${workerId}`;
+  }
+  return 'QUANT_RESEARCH_AGENT';
+}
+
+function extractAgentId(event) {
+  const prismId = extractPrismAgentId(event);
+  if (prismId) return prismId;
 
   const ticker = extractTicker(event);
   const station = classifyStation(
@@ -145,148 +200,54 @@ function extractAgentId(event) {
     event.data?.data_type || event.data_type,
     event.data?.room || event.room
   );
-  
+
   const stepLower = (event.step || '').toLowerCase();
   const detailLower = (event.detail || '').toLowerCase();
   const phaseLower = (event.phase || '').toLowerCase();
+  const allTexts = [stepLower, detailLower, phaseLower];
+  const stepDetailTexts = [stepLower, detailLower];
 
-  // 0. V3 pipeline roster — explicit names that don't end in _agent/_analyst,
-  // so the generic regex below never catches them. Checked first so e.g.
-  // v3_debate_judge isn't swallowed by the debate-station branch.
-  const V3_AGENTS = [
-    'v3_regime_engine',
-    'v3_board_of_directors',
-    'v3_portfolio_manager',
-    'v3_decision_synthesizer',
-    'v3_debate_judge',
-  ];
-  for (const name of V3_AGENTS) {
-    if (stepLower.includes(name) || detailLower.includes(name) || phaseLower.includes(name)) {
+  for (const name of V3_PIPELINE_ROSTER) {
+    if (allTexts.some(t => t.includes(name))) {
       return name.toUpperCase();
     }
   }
 
-  // 1. Janitor / Cleanup tasks
-  if (
-    stepLower.includes('janitor') ||
-    detailLower.includes('janitor') ||
-    phaseLower.includes('janitor') ||
-    stepLower.includes('purge') ||
-    detailLower.includes('purge')
-  ) {
-    return 'DATA_JANITOR';
-  }
-  
-  // 2. Risk Management
-  if (
-    stepLower.includes('risk') ||
-    detailLower.includes('risk') ||
-    stepLower.includes('veto') ||
-    detailLower.includes('veto') ||
-    stepLower.includes('pre_trade') ||
-    detailLower.includes('pre_trade')
-  ) {
-    // Distinguish between pre-trade risk and macro risk
-    if (stepLower.includes('macro') || detailLower.includes('macro')) {
-      return 'MACRO_RISK_AGENT';
-    }
-    return 'PRE_TRADE_RISK';
-  }
-  
-  // 3. Portfolio Allocator
-  if (
-    stepLower.includes('allocator') ||
-    detailLower.includes('allocator') ||
-    stepLower.includes('allocation') ||
-    detailLower.includes('allocation')
-  ) {
-    return 'PORTFOLIO_ALLOCATOR';
-  }
-  
-  // 4. Debate / Consensus
-  if (station === 'debate') {
-    if (stepLower.includes('bear') || detailLower.includes('bear') || phaseLower.includes('bear')) {
-      return 'BEARISH_DEBATER';
-    }
-    if (stepLower.includes('team_findings') || detailLower.includes('team_findings')) {
-      return 'TEAM_FINDINGS_AGENT';
-    }
-    return 'BULLISH_DEBATER'; // advocate gets mapped to BEARISH_DEBATER/BULLISH_DEBATER via mapEvent below
-  }
-  
-  // 4.5. Orchestrator & Positioning
-  if (stepLower.includes('orchestrator') || detailLower.includes('orchestrator')) {
-    return 'ORCHESTRATOR_AGENT';
-  }
-  if (stepLower.includes('v2_position') || detailLower.includes('v2_position')) {
-    return 'POSITION_AGENT';
-  }
-  
-  // 5. Dynamic Agent Name Matching (for standard pipeline agents)
-  const knownAgents = [
-    'fundamental_agent',
-    'sentiment_agent'
-  ];
+  const specialRole = matchSpecialRoleAgent(allTexts, stepDetailTexts, station);
+  if (specialRole) return specialRole;
 
-  for (const name of knownAgents) {
-    if (stepLower.includes(name) || detailLower.includes(name) || phaseLower.includes(name)) {
-      return name.toUpperCase();
-    }
-  }
-
-  // 6. Generic regex for any custom "_agent" or "_analyst"
-  const agentMatch = stepLower.match(/([a-z0-9_]+_(?:agent|analyst))/);
-  if (agentMatch) {
-    return agentMatch[1].toUpperCase();
-  }
-
-  const detailMatch = detailLower.match(/([a-z0-9_]+_(?:agent|analyst))/);
-  if (detailMatch) {
-    return detailMatch[1].toUpperCase();
-  }
-  
-  // 7. Research Desk (Data collection / workers)
-  if (station === 'research' && ticker) {
-    let hash = 0;
-    for (let i = 0; i < ticker.length; i++) {
-      hash += ticker.charCodeAt(i);
-    }
-    const workerId = (hash % 2) + 1;
-    return `QUANT_RESEARCH_AGENT_worker_${workerId}`;
-  }
-  
-  // 8. Default to QUANT_RESEARCH_AGENT
-  return 'QUANT_RESEARCH_AGENT';
+  return matchCustomAgentOrWorker(stepLower, detailLower, station, ticker);
 }
+
+const STEP_KEYWORD_TO_TOOL = [
+  ['price', 'price_data'],
+  ['news', 'news_fetch'],
+  ['reddit', 'reddit_scan'],
+  ['youtube', 'youtube_scan'],
+  ['fundamental', 'fundamentals'],
+  ['technical', 'technicals'],
+  ['crypto', 'crypto_data'],
+  ['completeness', 'data_check'],
+  ['regime', 'regime_scan'],
+  ['junior', 'desk_note'],
+  ['quant', 'quant_metrics'],
+  ['board', 'board_review'],
+  ['portfolio', 'portfolio_review'],
+  ['tournament', 'debate'],
+  ['analy', 'llm_analysis'],
+  ['synth', 'synthesis'],
+  ['consensus', 'consensus'],
+  ['debate', 'debate'],
+  ['trade', 'trade_exec'],
+];
 
 // ── Tool name extraction ──
 function extractToolName(event) {
-  const { step, detail } = event;
+  const { step } = event;
   const stepLower = (step || '').toLowerCase();
-  
-  if (stepLower.includes('price')) return 'price_data';
-  if (stepLower.includes('news')) return 'news_fetch';
-  if (stepLower.includes('reddit')) return 'reddit_scan';
-  if (stepLower.includes('youtube')) return 'youtube_scan';
-  if (stepLower.includes('fundamental')) return 'fundamentals';
-  if (stepLower.includes('technical')) return 'technicals';
-  if (stepLower.includes('crypto')) return 'crypto_data';
-  if (stepLower.includes('completeness')) return 'data_check';
-  // V3 pipeline roles — checked before the generic 'analy' branch so that
-  // e.g. v3_quant_analyst / v3_junior_analyst get their own label instead of
-  // collapsing to 'llm_analysis'.
-  if (stepLower.includes('regime')) return 'regime_scan';
-  if (stepLower.includes('junior')) return 'desk_note';
-  if (stepLower.includes('quant')) return 'quant_metrics';
-  if (stepLower.includes('board')) return 'board_review';
-  if (stepLower.includes('portfolio')) return 'portfolio_review';
-  if (stepLower.includes('tournament')) return 'debate';
-  if (stepLower.includes('analy')) return 'llm_analysis';
-  if (stepLower.includes('synth')) return 'synthesis';
-  if (stepLower.includes('consensus')) return 'consensus';
-  if (stepLower.includes('debate')) return 'debate';
-  if (stepLower.includes('trade')) return 'trade_exec';
-  
+  for (const [kw, toolName] of STEP_KEYWORD_TO_TOOL) {
+    if (stepLower.includes(kw)) return toolName;
+  }
   return step || 'unknown';
 }
 
