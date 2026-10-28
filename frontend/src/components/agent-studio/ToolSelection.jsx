@@ -127,6 +127,193 @@ function renderToolName(name) {
     .replace(/\b\w/g, c => c.toUpperCase());
 }
 
+function filterToolsByQuery(availableTools, query) {
+  if (!query) return availableTools;
+  return availableTools.filter(
+    tool =>
+      tool.name?.toLowerCase().includes(query) ||
+      renderToolName(tool.name)?.toLowerCase().includes(query) ||
+      tool.description?.toLowerCase().includes(query)
+  );
+}
+
+function sortGroupsByOrder(groups, orderList) {
+  const sorted = [];
+  for (const key of orderList) {
+    if (groups.has(key)) sorted.push([key, groups.get(key)]);
+  }
+  for (const [key, tools] of groups) {
+    if (!orderList.includes(key)) sorted.push([key, tools]);
+  }
+  return sorted;
+}
+
+function groupToolsByDomain(tools) {
+  const groups = new Map();
+  for (const tool of tools) {
+    const domain = tool.domain || 'Other';
+    if (!groups.has(domain)) groups.set(domain, []);
+    groups.get(domain).push(tool);
+  }
+  return sortGroupsByOrder(groups, DOMAIN_ORDER);
+}
+
+function groupToolsByLabel(tools) {
+  const groups = new Map();
+  for (const tool of tools) {
+    const labels = tool.labels && tool.labels.length > 0 ? tool.labels : ['other'];
+    for (const label of labels) {
+      if (!groups.has(label)) groups.set(label, []);
+      groups.get(label).push(tool);
+    }
+  }
+  return sortGroupsByOrder(groups, LABEL_ORDER);
+}
+
+function groupToolsByTier(tools) {
+  const groups = new Map();
+  for (const tool of tools) {
+    const tier = tool.tier ?? 0;
+    if (!groups.has(tier)) groups.set(tier, []);
+    groups.get(tier).push(tool);
+  }
+  return sortGroupsByOrder(groups, TIER_ORDER);
+}
+
+function getGroupIcon(groupMode, key) {
+  if (groupMode === 'label') return LABEL_ICONS[key] || Layers;
+  if (groupMode === 'tier') return TIER_ICONS[key] || Layers;
+  return DOMAIN_ICONS[key] || Layers;
+}
+
+function getGroupLabel(groupMode, key) {
+  if (groupMode === 'label') {
+    return LABEL_DISPLAY[key] || key.charAt(0).toUpperCase() + key.slice(1);
+  }
+  if (groupMode === 'tier') {
+    return TIER_LABELS[key] || `Tier ${key}`;
+  }
+  return key;
+}
+
+function ToolSelectionBulkRow({ availableCount, enabledCount, totalEnabledCount, selectAll, deselectAll }) {
+  const allSelected = availableCount > 0 && enabledCount === availableCount;
+  const isIndeterminate = enabledCount > 0 && enabledCount < availableCount;
+  const handleToggleAll = () => {
+    if (enabledCount === availableCount) deselectAll();
+    else selectAll();
+  };
+
+  return (
+    <div className="tool-selection__bulk-row">
+      <input
+        type="checkbox"
+        checked={allSelected}
+        ref={el => { if (el) el.indeterminate = isIndeterminate; }}
+        onChange={handleToggleAll}
+      />
+      <span className="tool-selection__bulk-label" onClick={handleToggleAll}>
+        {enabledCount === availableCount ? 'Deselect All' : 'Select All'}
+      </span>
+      <span className="tool-selection__global-count">
+        {totalEnabledCount}/{availableCount}
+      </span>
+    </div>
+  );
+}
+
+function ToolSelectionEmptyState({ groupMode }) {
+  const isSelectedMode = groupMode === 'selected';
+  return (
+    <div className="tool-selection__empty">
+      <Layers size={24} className="tool-selection__empty-icon" />
+      <span className="tool-selection__empty-text">
+        {isSelectedMode ? 'No tools selected' : 'No matching tools'}
+      </span>
+      <span className="tool-selection__empty-subtext">
+        {isSelectedMode
+          ? 'Enable tools from Domain, Label, or Tier tabs'
+          : 'Try adjusting your search query'}
+      </span>
+    </div>
+  );
+}
+
+function ToolSelectionGroupSection({
+  groupMode,
+  groupKey,
+  groupTools,
+  enabledSet,
+  isCollapsed,
+  toggleGroup,
+  toggleGroupTools,
+  toggleTool,
+}) {
+  const GroupIcon = getGroupIcon(groupMode, groupKey);
+  const label = getGroupLabel(groupMode, groupKey);
+  const compositeKey = `${groupMode}:${groupKey}`;
+  const groupEnabledCount = groupTools.filter(t => enabledSet.has(t.name)).length;
+  const isAllEnabled = groupTools.length > 0 && groupEnabledCount === groupTools.length;
+  const isIndeterminate = groupEnabledCount > 0 && groupEnabledCount < groupTools.length;
+
+  return (
+    <div className="tool-selection__group">
+      <div
+        className="tool-selection__group-header"
+        onClick={() => toggleGroup(compositeKey)}
+      >
+        <span className="tool-selection__group-caret">
+          {isCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+        </span>
+        <span className="tool-selection__group-icon">
+          <GroupIcon size={13} />
+        </span>
+        <span className="tool-selection__group-title">
+          {label}
+        </span>
+        <span className="tool-selection__group-count">
+          {groupEnabledCount}/{groupTools.length}
+        </span>
+        <span
+          className="tool-selection__group-checkbox"
+          onClick={e => e.stopPropagation()}
+        >
+          <input
+            type="checkbox"
+            checked={isAllEnabled}
+            ref={el => { if (el) el.indeterminate = isIndeterminate; }}
+            onChange={() => toggleGroupTools(groupTools)}
+          />
+        </span>
+      </div>
+
+      {!isCollapsed && (
+        <div className="tool-selection__group-content">
+          {groupTools.map(tool => (
+            <label
+              key={tool.name}
+              className="tool-selection__tool"
+              title={tool.description || ''}
+            >
+              <input
+                type="checkbox"
+                checked={enabledSet.has(tool.name)}
+                onChange={() => toggleTool(tool.name)}
+              />
+              <span className="tool-selection__tool-name">
+                {renderToolName(tool.name)}
+              </span>
+              <span className="tool-selection__tool-source">
+                {tool.source}
+              </span>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
  * ToolSelection — prism-style grouped tool picker with domain/label/tier
  * segmented views, search, tri-state checkboxes, and collapsible groups.
@@ -140,34 +327,20 @@ export default function ToolSelection({
   const [collapsedGroups, setCollapsedGroups] = useState(new Set());
   const [groupMode, setGroupMode] = useState('domain');
 
-  // ── Filtering ──
   const query = toolSearch.toLowerCase().trim();
-
-  const filteredTools = useMemo(() => {
-    if (!query) return availableTools;
-    return availableTools.filter(
-      tool =>
-        tool.name?.toLowerCase().includes(query) ||
-        renderToolName(tool.name)?.toLowerCase().includes(query) ||
-        tool.description?.toLowerCase().includes(query)
-    );
-  }, [availableTools, query]);
-
-  // ── Enabled set ──
+  const filteredTools = useMemo(() => filterToolsByQuery(availableTools, query), [availableTools, query]);
   const enabledSet = useMemo(() => new Set(enabledTools), [enabledTools]);
+  const enabledCount = useMemo(
+    () => filteredTools.filter(t => enabledSet.has(t.name)).length,
+    [filteredTools, enabledSet]
+  );
 
-  const enabledCount = useMemo(() => {
-    return filteredTools.filter(t => enabledSet.has(t.name)).length;
-  }, [filteredTools, enabledSet]);
-
-  // ── Tool toggling ──
   const toggleTool = useCallback((toolName) => {
     const current = enabledTools || [];
-    if (current.includes(toolName)) {
-      onEnabledToolsChange?.(current.filter(t => t !== toolName));
-    } else {
-      onEnabledToolsChange?.([...current, toolName]);
-    }
+    const next = current.includes(toolName)
+      ? current.filter(t => t !== toolName)
+      : [...current, toolName];
+    onEnabledToolsChange?.(next);
   }, [enabledTools, onEnabledToolsChange]);
 
   const selectAll = useCallback(() => {
@@ -178,7 +351,6 @@ export default function ToolSelection({
     onEnabledToolsChange?.([]);
   }, [onEnabledToolsChange]);
 
-  // ── Group toggling ──
   const toggleGroup = useCallback((key) => {
     setCollapsedGroups(prev => {
       const next = new Set(prev);
@@ -192,124 +364,23 @@ export default function ToolSelection({
     const current = enabledTools || [];
     const names = groupTools.map(t => t.name);
     const allEnabled = names.every(n => current.includes(n));
-
-    if (allEnabled) {
-      onEnabledToolsChange?.(current.filter(n => !names.includes(n)));
-    } else {
-      const toAdd = names.filter(n => !current.includes(n));
-      onEnabledToolsChange?.([...current, ...toAdd]);
-    }
+    const next = allEnabled
+      ? current.filter(n => !names.includes(n))
+      : [...current, ...names.filter(n => !current.includes(n))];
+    onEnabledToolsChange?.(next);
   }, [enabledTools, onEnabledToolsChange]);
 
-  // ── Group by domain ──
-  const groupedByDomain = useMemo(() => {
-    const groups = new Map();
-    for (const tool of filteredTools) {
-      const domain = tool.domain || 'Other';
-      if (!groups.has(domain)) groups.set(domain, []);
-      groups.get(domain).push(tool);
-    }
-    const sorted = [];
-    for (const domain of DOMAIN_ORDER) {
-      if (groups.has(domain)) sorted.push([domain, groups.get(domain)]);
-    }
-    for (const [domain, tools] of groups) {
-      if (!DOMAIN_ORDER.includes(domain)) sorted.push([domain, tools]);
-    }
-    return sorted;
-  }, [filteredTools]);
-
-  // ── Group by label ──
-  const groupedByLabel = useMemo(() => {
-    const groups = new Map();
-    for (const tool of filteredTools) {
-      const labels = tool.labels && tool.labels.length > 0 ? tool.labels : ['other'];
-      for (const label of labels) {
-        if (!groups.has(label)) groups.set(label, []);
-        groups.get(label).push(tool);
-      }
-    }
-    const sorted = [];
-    for (const label of LABEL_ORDER) {
-      if (groups.has(label)) sorted.push([label, groups.get(label)]);
-    }
-    for (const [label, tools] of groups) {
-      if (!LABEL_ORDER.includes(label)) sorted.push([label, tools]);
-    }
-    return sorted;
-  }, [filteredTools]);
-
-  // ── Group by tier ──
-  const groupedByTier = useMemo(() => {
-    const groups = new Map();
-    for (const tool of filteredTools) {
-      const tier = tool.tier ?? 0;
-      if (!groups.has(tier)) groups.set(tier, []);
-      groups.get(tier).push(tool);
-    }
-    const sorted = [];
-    for (const tier of TIER_ORDER) {
-      if (groups.has(tier)) sorted.push([tier, groups.get(tier)]);
-    }
-    for (const [tier, tools] of groups) {
-      if (!TIER_ORDER.includes(tier)) sorted.push([tier, tools]);
-    }
-    return sorted;
-  }, [filteredTools]);
-
-  // ── Selected mode: only enabled tools grouped by domain ──
-  const selectedGroupedByDomain = useMemo(() => {
-    const selected = filteredTools.filter(t => enabledSet.has(t.name));
-    const groups = new Map();
-    for (const tool of selected) {
-      const domain = tool.domain || 'Other';
-      if (!groups.has(domain)) groups.set(domain, []);
-      groups.get(domain).push(tool);
-    }
-    const sorted = [];
-    for (const domain of DOMAIN_ORDER) {
-      if (groups.has(domain)) sorted.push([domain, groups.get(domain)]);
-    }
-    for (const [domain, tools] of groups) {
-      if (!DOMAIN_ORDER.includes(domain)) sorted.push([domain, tools]);
-    }
-    return sorted;
-  }, [filteredTools, enabledSet]);
-
-  // ── Determine active groups based on mode ──
   const activeGroups = useMemo(() => {
-    switch (groupMode) {
-      case 'label': return groupedByLabel;
-      case 'tier': return groupedByTier;
-      case 'selected': return selectedGroupedByDomain;
-      default: return groupedByDomain;
+    if (groupMode === 'label') return groupToolsByLabel(filteredTools);
+    if (groupMode === 'tier') return groupToolsByTier(filteredTools);
+    if (groupMode === 'selected') {
+      return groupToolsByDomain(filteredTools.filter(t => enabledSet.has(t.name)));
     }
-  }, [groupMode, groupedByDomain, groupedByLabel, groupedByTier, selectedGroupedByDomain]);
+    return groupToolsByDomain(filteredTools);
+  }, [groupMode, filteredTools, enabledSet]);
 
-  // ── Get icon/label helpers ──
-  const getGroupIcon = (key) => {
-    switch (groupMode) {
-      case 'label': return LABEL_ICONS[key] || Layers;
-      case 'tier': return TIER_ICONS[key] || Layers;
-      default: return DOMAIN_ICONS[key] || Layers;
-    }
-  };
-
-  const getGroupLabel = (key) => {
-    switch (groupMode) {
-      case 'label':
-        return LABEL_DISPLAY[key] || key.charAt(0).toUpperCase() + key.slice(1);
-      case 'tier':
-        return TIER_LABELS[key] || `Tier ${key}`;
-      default:
-        return key;
-    }
-  };
-
-  // ── Render ──
   return (
     <div className="tool-selection">
-      {/* Search */}
       <div className="tool-selection__search-wrapper">
         <Search size={14} className="tool-selection__search-icon" />
         <input
@@ -320,7 +391,6 @@ export default function ToolSelection({
         />
       </div>
 
-      {/* Segmented control */}
       <div className="tool-selection__segments">
         {['domain', 'label', 'tier', 'selected'].map(mode => (
           <button
@@ -333,121 +403,32 @@ export default function ToolSelection({
         ))}
       </div>
 
-      {/* Bulk select */}
       {groupMode !== 'selected' && (
-        <div className="tool-selection__bulk-row">
-          <input
-            type="checkbox"
-            checked={availableTools.length > 0 && enabledCount === availableTools.length}
-            ref={el => { if (el) el.indeterminate = enabledCount > 0 && enabledCount < availableTools.length; }}
-            onChange={() => {
-              if (enabledCount === availableTools.length) {
-                deselectAll();
-              } else {
-                selectAll();
-              }
-            }}
-          />
-          <span
-            className="tool-selection__bulk-label"
-            onClick={() => {
-              if (enabledCount === availableTools.length) {
-                deselectAll();
-              } else {
-                selectAll();
-              }
-            }}
-          >
-            {enabledCount === availableTools.length ? 'Deselect All' : 'Select All'}
-          </span>
-          <span className="tool-selection__global-count">
-            {enabledTools.length}/{availableTools.length}
-          </span>
-        </div>
+        <ToolSelectionBulkRow
+          availableCount={availableTools.length}
+          enabledCount={enabledCount}
+          totalEnabledCount={enabledTools.length}
+          selectAll={selectAll}
+          deselectAll={deselectAll}
+        />
       )}
 
-      {/* Groups */}
       <div className="tool-selection__list">
-        {activeGroups.length === 0 && (
-          <div className="tool-selection__empty">
-            <Layers size={24} className="tool-selection__empty-icon" />
-            <span className="tool-selection__empty-text">
-              {groupMode === 'selected' ? 'No tools selected' : 'No matching tools'}
-            </span>
-            <span className="tool-selection__empty-subtext">
-              {groupMode === 'selected'
-                ? 'Enable tools from Domain, Label, or Tier tabs'
-                : 'Try adjusting your search query'}
-            </span>
-          </div>
-        )}
+        {activeGroups.length === 0 && <ToolSelectionEmptyState groupMode={groupMode} />}
 
-        {activeGroups.map(([groupKey, groupTools]) => {
-          const GroupIcon = getGroupIcon(groupKey);
-          const label = getGroupLabel(groupKey);
-          const isCollapsed = collapsedGroups.has(`${groupMode}:${groupKey}`);
-
-          const groupEnabledCount = groupTools.filter(t => enabledSet.has(t.name)).length;
-          const isAllEnabled = groupTools.length > 0 && groupEnabledCount === groupTools.length;
-          const isIndeterminate = groupEnabledCount > 0 && groupEnabledCount < groupTools.length;
-
-          return (
-            <div key={`${groupMode}:${groupKey}`} className="tool-selection__group">
-              <div
-                className="tool-selection__group-header"
-                onClick={() => toggleGroup(`${groupMode}:${groupKey}`)}
-              >
-                <span className="tool-selection__group-caret">
-                  {isCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
-                </span>
-                <span className="tool-selection__group-icon">
-                  <GroupIcon size={13} />
-                </span>
-                <span className="tool-selection__group-title">
-                  {label}
-                </span>
-                <span className="tool-selection__group-count">
-                  {groupEnabledCount}/{groupTools.length}
-                </span>
-                <span
-                  className="tool-selection__group-checkbox"
-                  onClick={e => e.stopPropagation()}
-                >
-                  <input
-                    type="checkbox"
-                    checked={isAllEnabled}
-                    ref={el => { if (el) el.indeterminate = isIndeterminate; }}
-                    onChange={() => toggleGroupTools(groupTools)}
-                  />
-                </span>
-              </div>
-
-              {!isCollapsed && (
-                <div className="tool-selection__group-content">
-                  {groupTools.map(tool => (
-                    <label
-                      key={tool.name}
-                      className="tool-selection__tool"
-                      title={tool.description || ''}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={enabledSet.has(tool.name)}
-                        onChange={() => toggleTool(tool.name)}
-                      />
-                      <span className="tool-selection__tool-name">
-                        {renderToolName(tool.name)}
-                      </span>
-                      <span className="tool-selection__tool-source">
-                        {tool.source}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
+        {activeGroups.map(([groupKey, groupTools]) => (
+          <ToolSelectionGroupSection
+            key={`${groupMode}:${groupKey}`}
+            groupMode={groupMode}
+            groupKey={groupKey}
+            groupTools={groupTools}
+            enabledSet={enabledSet}
+            isCollapsed={collapsedGroups.has(`${groupMode}:${groupKey}`)}
+            toggleGroup={toggleGroup}
+            toggleGroupTools={toggleGroupTools}
+            toggleTool={toggleTool}
+          />
+        ))}
       </div>
     </div>
   );

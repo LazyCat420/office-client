@@ -39,6 +39,56 @@ export interface TelemetryContextType {
 
 export const TelemetryContext = createContext<TelemetryContextType | null>(null);
 
+function resolveMergedCycleList<T>(oldList: T[] | undefined, newList: T[] | undefined): T[] {
+  const safeOld = oldList || [];
+  const safeNew = newList || [];
+  if (safeOld.length > 0 && safeNew.length > 0) {
+    return safeNew.length >= safeOld.length ? safeNew : safeOld;
+  }
+  if (safeOld.length > 0) {
+    return safeOld;
+  }
+  return safeNew;
+}
+
+function mergeCycleStatusUpdate(previousCycle: CycleStatus | null, cycleState: CycleStatus): CycleStatus {
+  const isSameCycle = Boolean(
+    previousCycle && previousCycle.cycle_id && previousCycle.cycle_id === cycleState.cycle_id
+  );
+  if (!isSameCycle || !previousCycle) {
+    return {
+      ...cycleState,
+      events: cycleState.events || [],
+      results: cycleState.results || [],
+    };
+  }
+  return {
+    ...cycleState,
+    events: resolveMergedCycleList(previousCycle.events, cycleState.events),
+    results: resolveMergedCycleList(previousCycle.results, cycleState.results),
+  };
+}
+
+function appendCycleEventsEntry(
+  previousEvents: Record<string, CycleEvent[]>,
+  cycleId: string,
+  incomingEvents?: CycleEvent[],
+): Record<string, CycleEvent[]> {
+  const nextEventsMap = { ...previousEvents };
+  const oldEvents = nextEventsMap[cycleId] || [];
+  const hasNewerEvents = Array.isArray(incomingEvents) && incomingEvents.length >= oldEvents.length;
+  nextEventsMap[cycleId] = hasNewerEvents ? incomingEvents! : oldEvents;
+
+  const cycleKeys = Object.keys(nextEventsMap);
+  if (cycleKeys.length > 5) {
+    const oldestKey = cycleKeys.find(key => key !== cycleId);
+    if (oldestKey) {
+      delete nextEventsMap[oldestKey];
+    }
+  }
+  return nextEventsMap;
+}
+
 export function TelemetryProvider({ children }: { children: React.ReactNode }) {
   const [currentCycle, setCurrentCycle] = useState<CycleStatus | null>(null);
   const [eventsByCycle, setEventsByCycle] = useState<Record<string, CycleEvent[]>>({});
@@ -46,55 +96,12 @@ export function TelemetryProvider({ children }: { children: React.ReactNode }) {
   const updateCycleState = useCallback((cycleState: CycleStatus) => {
     if (!cycleState) return;
 
-    let resolvedEvents: CycleEvent[] = cycleState.events || [];
-    let resolvedResults: CycleResult[] = cycleState.results || [];
-
-    setCurrentCycle((previousCycle) => {
-      if (previousCycle && previousCycle.cycle_id && previousCycle.cycle_id === cycleState.cycle_id) {
-        const hasOldEvents = previousCycle.events && previousCycle.events.length > 0;
-        const hasNewEvents = cycleState.events && cycleState.events.length > 0;
-        const hasOldResults = previousCycle.results && previousCycle.results.length > 0;
-        const hasNewResults = cycleState.results && cycleState.results.length > 0;
-
-        if (hasOldEvents && hasNewEvents) {
-          // Prefer newer payload when same or greater length (may have updated statuses)
-          resolvedEvents = (cycleState.events && previousCycle.events && cycleState.events.length >= previousCycle.events.length)
-            ? cycleState.events
-            : (previousCycle.events || []);
-        } else if (hasOldEvents && !hasNewEvents) {
-          resolvedEvents = previousCycle.events || [];
-        }
-
-        if (hasOldResults && hasNewResults) {
-          resolvedResults = (cycleState.results && previousCycle.results && cycleState.results.length >= previousCycle.results.length)
-            ? cycleState.results
-            : (previousCycle.results || []);
-        } else if (hasOldResults && !hasNewResults) {
-          resolvedResults = previousCycle.results || [];
-        }
-      }
-      return { ...cycleState, events: resolvedEvents, results: resolvedResults };
-    });
+    setCurrentCycle((previousCycle) => mergeCycleStatusUpdate(previousCycle, cycleState));
 
     if (cycleState.cycle_id) {
-      setEventsByCycle((previousEvents) => {
-        const nextEventsMap = { ...previousEvents };
-        const oldEvents = nextEventsMap[cycleState.cycle_id!] || [];
-        const finalEvents = (cycleState.events && Array.isArray(cycleState.events) && cycleState.events.length >= oldEvents.length)
-          ? cycleState.events
-          : oldEvents;
-        nextEventsMap[cycleState.cycle_id!] = finalEvents;
-
-        // Keep at most 5 cycles to prevent unbounded memory growth
-        const cycleKeys = Object.keys(nextEventsMap);
-        if (cycleKeys.length > 5) {
-          const oldestKey = cycleKeys.find(key => key !== cycleState.cycle_id);
-          if (oldestKey) {
-            delete nextEventsMap[oldestKey];
-          }
-        }
-        return nextEventsMap;
-      });
+      setEventsByCycle((previousEvents) =>
+        appendCycleEventsEntry(previousEvents, cycleState.cycle_id!, cycleState.events)
+      );
     }
   }, []);
 
