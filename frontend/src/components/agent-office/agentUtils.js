@@ -29,12 +29,9 @@ export function cleanAgentId(agentName) {
   if (clean === 'PRE_TRADE_AGENT') return 'PRE_TRADE_RISK';
   
   const cleanLower = clean.toLowerCase();
-  if (cleanLower.includes('bullish') || cleanLower.includes('bull_')) return 'BULLISH_DEBATER';
-  if (cleanLower.includes('bearish') || cleanLower.includes('bear_')) return 'BEARISH_DEBATER';
 
   // Map persona-keyed agent names to their 3D office counterparts
   if (cleanLower === 'fundamental' || cleanLower === 'fundamental_agent') return 'QUANT_RESEARCH_AGENT';
-  if (cleanLower === 'behavioral' || cleanLower === 'sentiment_agent') return 'BULLISH_DEBATER';
   if (cleanLower === 'risk') return 'PRE_TRADE_RISK';
   if (cleanLower === 'pm' || cleanLower === 'portfolio_allocator') return 'PORTFOLIO_ALLOCATOR';
   if (cleanLower === 'quant') return 'QUANT_RESEARCH_AGENT';

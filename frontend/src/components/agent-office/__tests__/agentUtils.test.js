@@ -25,9 +25,9 @@ describe("cleanAgentId", () => {
     expect(cleanAgentId("weekly_janitor_run")).toBe("DATA_JANITOR");
   });
 
-  it("maps debater aliases", () => {
-    expect(cleanAgentId("bullish_researcher")).toBe("BULLISH_DEBATER");
-    expect(cleanAgentId("BEAR_CASE_AGENT")).toBe("BEARISH_DEBATER");
+  it("passes sentiment_agent through for canonicalization", () => {
+    expect(cleanAgentId("sentiment_agent")).toBe("sentiment_agent");
+    expect(canonicalAgentId(cleanAgentId("sentiment_agent"))).toBe("SENTIMENT_AGENT");
   });
 
   it("maps persona-keyed names to 3D office counterparts", () => {
@@ -75,8 +75,8 @@ describe("canonicalAgentId", () => {
 });
 
 describe("getHomeStation", () => {
-  it("routes debaters to the war room", () => {
-    expect(getHomeStation("BULLISH_DEBATER")).toBe("debate");
+  it("routes board_of_directors to the war room", () => {
+    expect(getHomeStation("V3_BOARD_OF_DIRECTORS")).toBe("debate");
   });
 
   it("routes risk agents to risk management", () => {

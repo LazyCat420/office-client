@@ -134,7 +134,6 @@ const V3_PIPELINE_ROSTER = [
   'v3_board_of_directors',
   'v3_portfolio_manager',
   'v3_decision_synthesizer',
-  'v3_debate_judge',
   'fundamental_agent',
   'sentiment_agent',
 ];
@@ -163,9 +162,8 @@ function matchSpecialRoleAgent(texts, stepDetailTexts, station) {
     return 'PORTFOLIO_ALLOCATOR';
   }
   if (station === 'debate') {
-    if (anyTextIncludes(texts, ['bear'])) return 'BEARISH_DEBATER';
     if (anyTextIncludes(stepDetailTexts, ['team_findings'])) return 'TEAM_FINDINGS_AGENT';
-    return 'BULLISH_DEBATER';
+    return 'V3_BOARD_OF_DIRECTORS';
   }
   if (anyTextIncludes(stepDetailTexts, ['orchestrator'])) return 'ORCHESTRATOR_AGENT';
   if (anyTextIncludes(stepDetailTexts, ['v2_position'])) return 'POSITION_AGENT';
@@ -265,7 +263,7 @@ function mapStatus(backendStatus) {
 
 /**
  * Map a single backend event to office event(s).
- * Returns an ARRAY — debate events produce 2 events (primary + advocate).
+ * Returns an ARRAY containing the mapped primary office event.
  */
 export function mapEvent(event) {
   if (!event || event.step === 'heartbeat') {
@@ -305,25 +303,6 @@ export function mapEvent(event) {
       category: event.category || event.meta?.category,
     },
   };
-
-  // Debate events spawn a synthetic devil's advocate agent.
-  // Default to BEARISH_DEBATER (matches the system-SSE path) — a synthetic
-  // `${agentId}_adv` clone would leak a phantom agent that keyword-matches a
-  // home station (e.g. V3_DEBATE_JUDGE_adv) and never gets GC'd.
-  if (station === 'debate') {
-    let advocateId = 'BEARISH_DEBATER';
-    if (agentId === 'BULLISH_DEBATER') advocateId = 'BEARISH_DEBATER';
-    else if (agentId === 'BEARISH_DEBATER') advocateId = 'BULLISH_DEBATER';
-    else if (agentId === 'system') advocateId = 'advocate';
-
-    const advocate = {
-      ...primary,
-      agentId: advocateId,
-      tool: tool === 'consensus' ? '🐻 COUNTER' : tool,
-      label: `${advocateId}: counter-argument`,
-    };
-    return [primary, advocate];
-  }
 
   return [primary];
 }

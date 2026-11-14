@@ -371,7 +371,7 @@ export function createAgent(agentId, ts) {
 
   const slot = claimSlot('lobby');
   const pos = getSafeSlotPosition('lobby', slot, agentId);
-  const opponentId = agentId === 'BULLISH_DEBATER' ? 'BEARISH_DEBATER' : (agentId === 'BEARISH_DEBATER' ? 'BULLISH_DEBATER' : null);
+  const opponentId = null;
 
   return {
     id: agentId,

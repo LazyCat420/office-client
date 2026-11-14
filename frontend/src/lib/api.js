@@ -144,10 +144,6 @@ export const getClosedLots = (ticker, limit = 50) => request(`/portfolio/lots/cl
 
 // ── Analysis ──
 
-// ── Persistent Verdicts ──
-export const getLatestVerdicts = (limit = 100) => request(`/verdicts/latest?limit=${limit}`);
-export const getVerdictHistory = (ticker, limit = 20) => request(`/verdicts/history/${encodeURIComponent(ticker)}?limit=${limit}`);
-
 // ── Ticker User Notes ──
 export const getTickerNotes = () => request('/ticker-notes');
 export const getTickerNote = (ticker) => request(`/ticker-notes/${encodeURIComponent(ticker)}`);

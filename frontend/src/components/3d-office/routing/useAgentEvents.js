@@ -40,9 +40,8 @@ const getStationForAgentOrTool = (agentId, toolName) =>
   sharedGetStationForAgentOrTool(agentId, toolName, classifyToolStation, true);
 
 // Canonical ids of the real V3 pipeline roster (see canonicalAgentId).
-// V1 names that receive no events in a V3 cycle (DATA_JANITOR,
-// PRE_TRADE_RISK, PORTFOLIO_ALLOCATOR) were dropped; the debaters still
-// receive events via the bull/bear aliases.
+// Debate roles (BULLISH_DEBATER, BEARISH_DEBATER, V3_DEBATE_JUDGE) were
+// removed along with the debate subsystem; the Board sits in the War Room.
 const PIPELINE_AGENTS = [
   'QUANT_RESEARCH_AGENT',
   'V3_QUANT_ANALYST',
@@ -52,9 +51,6 @@ const PIPELINE_AGENTS = [
   'V3_BOARD_OF_DIRECTORS',
   'V3_PORTFOLIO_MANAGER',
   'V3_DECISION_SYNTHESIZER',
-  'V3_DEBATE_JUDGE',
-  'BULLISH_DEBATER',
-  'BEARISH_DEBATER',
 ];
 
 // Returns a handle whose close() always closes the CURRENT EventSource —
@@ -489,26 +485,9 @@ function maybeScheduleSmokeBreak(agentId, eligible, taskCountRef, cancelled, set
   }, 500);
 }
 
-function resolveAdvocateAgentId(agentId) {
-  if (agentId === 'BEARISH_DEBATER') return 'BULLISH_DEBATER';
-  if (agentId === 'system') return 'advocate';
-  return 'BEARISH_DEBATER';
-}
-
 function applyMappedSystemEvent(prevAgents, mappedEvent, applyTimers) {
-  let updated = processEvent({ ...prevAgents }, mappedEvent);
+  const updated = processEvent({ ...prevAgents }, mappedEvent);
   applyTimers(mappedEvent.agentId, updated[mappedEvent.agentId]);
-  if (mappedEvent.station === 'debate') {
-    const advocateId = resolveAdvocateAgentId(mappedEvent.agentId);
-    const advEvent = {
-      ...mappedEvent,
-      agentId: advocateId,
-      tool: mappedEvent.tool === 'consensus' ? '🐻 COUNTER' : mappedEvent.tool,
-      label: `${advocateId}: counter-argument`,
-    };
-    updated = processEvent(updated, advEvent);
-    applyTimers(advocateId, updated[advocateId]);
-  }
   return updated;
 }
 

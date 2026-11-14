@@ -24,7 +24,6 @@ describe("mapEvent agent identity", () => {
       { step: "v3_regime_engine_start_UBER", agentId: "V3_REGIME_ENGINE", station: "research" },
       { step: "v3_portfolio_manager_done_UBER", agentId: "V3_PORTFOLIO_MANAGER", station: "inbox" },
       { step: "v3_decision_synthesizer_done_UBER", agentId: "V3_DECISION_SYNTHESIZER" },
-      { step: "v3_debate_judge_done_UBER", agentId: "V3_DEBATE_JUDGE", station: "debate" },
       { step: "v3_board_of_directors_done_UBER", agentId: "V3_BOARD_OF_DIRECTORS", station: "debate" },
     ];
     for (const { step, agentId, station } of cases) {
@@ -34,10 +33,11 @@ describe("mapEvent agent identity", () => {
     }
   });
 
-  it("spawns a real debater as counter-advocate for debate events, never a phantom _adv clone", () => {
-    const events = mapEvent(backendEvent({ step: "v3_debate_judge_done_UBER" }));
-    expect(events).toHaveLength(2);
-    expect(events[1].agentId).toBe("BEARISH_DEBATER");
+  it("maps War Room board events as a single event without spawning counter-advocate debaters", () => {
+    const events = mapEvent(backendEvent({ step: "v3_board_of_directors_done_UBER" }));
+    expect(events).toHaveLength(1);
+    expect(events[0].agentId).toBe("V3_BOARD_OF_DIRECTORS");
+    expect(events[0].station).toBe("debate");
   });
 });
 
